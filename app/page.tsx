@@ -84,13 +84,21 @@ export default function JsonParserApp() {
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2 text-balance">JSON Configuration Parser</h1>
+          <h1 className="text-4xl font-bold text-foreground mb-2 text-balance">JSON Data Parser</h1>
           <p className="text-muted-foreground text-lg text-pretty">
-            Parse, filter, and analyze JSON configuration data with advanced table views
+            Parse, filter, and analyze JSON data with advanced table views
           </p>
           <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <Shield className="h-4 w-4" />
-            <span>All data is processed locally in your browser - Data exists only in browser memory during the session</span>
+            <span>
+              All data is processed locally in your browser - Data exists only in browser memory during the session
+            </span>
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground bg-muted/50 rounded-lg p-3 max-w-2xl mx-auto">
+            <p>
+              <strong>Note:</strong> This tool works best with flat JSON structures. Nested objects will be displayed as
+              "X properties" in the table view. For complex nested data, consider flattening your JSON structure first.
+            </p>
           </div>
         </div>
 
@@ -102,7 +110,7 @@ export default function JsonParserApp() {
                 <Code className="h-5 w-5" />
                 JSON Input
               </CardTitle>
-              <CardDescription>Paste your JSON configuration data or upload a file</CardDescription>
+              <CardDescription>Paste your JSON data or upload a file</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <Tabs defaultValue="text" className="w-full">
@@ -119,7 +127,7 @@ export default function JsonParserApp() {
 
                 <TabsContent value="text" className="space-y-4">
                   <Textarea
-                    placeholder="Paste your JSON configuration data here..."
+                    placeholder="Paste your JSON data here..."
                     value={jsonInput}
                     onChange={(e) => setJsonInput(e.target.value)}
                     className="min-h-[200px] font-mono text-sm"
@@ -180,11 +188,9 @@ export default function JsonParserApp() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Table className="h-5 w-5" />
-                  Configuration Analysis
+                  Data Analysis
                 </CardTitle>
-                <CardDescription>
-                  Analyze your configuration data with filtering, grouping, and export options
-                </CardDescription>
+                <CardDescription>Analyze your data with filtering, grouping, and export options</CardDescription>
               </CardHeader>
               <CardContent>
                 <JsonTableViewer key={dataKey} data={parsedJson} />
