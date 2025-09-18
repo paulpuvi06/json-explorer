@@ -90,7 +90,7 @@ export default function JsonParserApp() {
           </p>
           <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <Shield className="h-4 w-4" />
-            <span>All data is processed locally in your browser - nothing is stored on our servers</span>
+            <span>All data is processed locally in your browser - Data exists only in browser memory during the session</span>
           </div>
         </div>
 
