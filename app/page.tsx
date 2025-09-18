@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { JsonTableViewer } from "@/components/json-table-viewer"
 import { FileUpload } from "@/components/file-upload"
-import { CheckCircle, AlertCircle, FileText, Upload, Code, Table } from "lucide-react"
+import { CheckCircle, AlertCircle, FileText, Upload, Code, Table, Shield } from "lucide-react"
 
 export default function JsonParserApp() {
   const [jsonInput, setJsonInput] = useState("")
@@ -29,7 +29,7 @@ export default function JsonParserApp() {
   }, [jsonInput])
 
   const validateAndParseJson = () => {
-    console.log("[v0] Parsing JSON, input length:", jsonInput.length)
+    console.log("[json-parser] Parsing JSON, input length:", jsonInput.length)
 
     if (!jsonInput.trim()) {
       setError("Please enter some JSON data")
@@ -40,13 +40,13 @@ export default function JsonParserApp() {
 
     try {
       const parsed = JSON.parse(jsonInput)
-      console.log("[v0] JSON parsed successfully, keys:", Object.keys(parsed))
+      console.log("[json-parser] JSON parsed successfully, keys:", Object.keys(parsed))
       setParsedJson(parsed)
       setError(null)
       setIsValid(true)
       setDataKey((prev) => prev + 1)
     } catch (err) {
-      console.log("[v0] JSON parse error:", err)
+      console.log("[json-parser] JSON parse error:", err)
       setError(err instanceof Error ? err.message : "Invalid JSON format")
       setIsValid(false)
       setParsedJson(null)
@@ -74,7 +74,7 @@ export default function JsonParserApp() {
   }
 
   const handleFileContent = (content: string) => {
-    console.log("[v0] File content received, length:", content.length)
+    console.log("[json-parser] File content received, length:", content.length)
     setJsonInput(content)
     setDataKey((prev) => prev + 1)
   }
@@ -88,6 +88,10 @@ export default function JsonParserApp() {
           <p className="text-muted-foreground text-lg text-pretty">
             Parse, filter, and analyze JSON configuration data with advanced table views
           </p>
+          <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Shield className="h-4 w-4" />
+            <span>All data is processed locally in your browser - nothing is stored on our servers</span>
+          </div>
         </div>
 
         <div className="space-y-6">

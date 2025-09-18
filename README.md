@@ -1,30 +1,43 @@
-# App configuration parsing
+# JSON Configuration Parser
 
-*Automatically synced with your [v0.app](https://v0.app) deployments*
+*A standalone static site for parsing and analyzing JSON configuration data*
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/devops-dynamos/v0-app-configuration-parsing)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.app-black?style=for-the-badge)](https://v0.app/chat/projects/l3yAoa1KX20)
+[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/devops-dynamos/json-parser)
+[![Built with Next.js](https://img.shields.io/badge/Built%20with-Next.js-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
 
 ## Overview
 
-This repository will stay in sync with your deployed chats on [v0.app](https://v0.app).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.app](https://v0.app).
+A powerful JSON configuration parser that runs entirely in your browser. Parse, analyze, filter, and export JSON data with advanced table views and sorting capabilities.
+
+## Features
+
+- **Client-side Processing**: All data stays in your browser - no server storage
+- **Advanced Table Views**: Sort, filter, and rearrange columns
+- **Export Options**: Export filtered data with field exclusion
+- **URL Detection**: Automatically converts URLs to clickable links
+- **File Upload**: Support for JSON file uploads
+- **Static Deployment**: Can be deployed as a standalone static site
 
 ## Deployment
 
-Your project is live at:
+This project can be deployed as a static site to any hosting platform:
 
-**[https://vercel.com/devops-dynamos/v0-app-configuration-parsing](https://vercel.com/devops-dynamos/v0-app-configuration-parsing)**
+- **Vercel**: Automatic static optimization
+- **Netlify**: Static site hosting
+- **GitHub Pages**: Static deployment
+- **Any CDN**: Fully static build output
 
-## Build your app
+## Privacy
 
-Continue building your app on:
+- No data is sent to external servers
+- All processing happens locally in your browser
+- No cookies or tracking
+- No user data collection
 
-**[https://v0.app/chat/projects/l3yAoa1KX20](https://v0.app/chat/projects/l3yAoa1KX20)**
+## Build
 
-## How It Works
+\`\`\`bash
+npm run build
+\`\`\`
 
-1. Create and modify your project using [v0.app](https://v0.app)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+The build output is fully static and can be served from any web server or CDN.
