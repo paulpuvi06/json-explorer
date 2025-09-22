@@ -18,6 +18,38 @@ A powerful JSON configuration parser that runs entirely in your browser. Parse, 
 - **File Upload**: Support for JSON file uploads
 - **Static Deployment**: Can be deployed as a standalone static site
 
+## Quick Start
+
+### Using Docker (Recommended)
+
+**Production:**
+\`\`\`bash
+# Build and run production container
+docker-compose --profile prod up --build
+
+# Access at http://localhost:3000
+\`\`\`
+
+**Development with hot reload:**
+\`\`\`bash
+# Run development container with live reloading
+docker-compose --profile dev up --build
+
+# Access at http://localhost:3001
+\`\`\`
+
+### Local Development
+
+\`\`\`bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Access at http://localhost:3000
+\`\`\`
+
 ## How It Works
 
 ### Data Input Methods
@@ -62,6 +94,16 @@ This project can be deployed as a static site to any hosting platform:
 - **Netlify**: Static site hosting
 - **GitHub Pages**: Static deployment
 - **Any CDN**: Fully static build output
+- **Docker**: Containerized deployment with included Dockerfile
+
+### Docker Deployment
+
+The project includes an optimized Docker configuration:
+
+- **Single Dockerfile**: Handles both production and development modes through build arguments
+- **Production Mode**: Multi-stage build with Next.js standalone output for optimal performance
+- **Development Mode**: Hot reload support with volume mounting for live development
+- **Docker Compose Profiles**: Easy switching between `prod` and `dev` environments
 
 ## Privacy
 
