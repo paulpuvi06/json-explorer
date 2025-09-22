@@ -114,12 +114,18 @@ export default function JsonParserApp() {
             </CardHeader>
             <CardContent className="space-y-4">
               <Tabs defaultValue="text" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="text" className="flex items-center gap-2">
+                <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-1 rounded-xl">
+                  <TabsTrigger
+                    value="text"
+                    className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-200 hover:bg-background/50"
+                  >
                     <FileText className="h-4 w-4" />
                     Text Input
                   </TabsTrigger>
-                  <TabsTrigger value="file" className="flex items-center gap-2">
+                  <TabsTrigger
+                    value="file"
+                    className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-200 hover:bg-background/50"
+                  >
                     <Upload className="h-4 w-4" />
                     File Upload
                   </TabsTrigger>
