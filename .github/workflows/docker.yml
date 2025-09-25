@@ -74,3 +74,11 @@ jobs:
         labels: ${{ steps.meta.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
+
+    - name: Clean up untagged images
+      if: github.event_name != 'pull_request' && github.event.inputs.push_to_registry != 'false'
+      uses: dataaxiom/ghcr-cleanup-action@v1
+      with:
+        delete-untagged: true
+        keep-n-untagged: 0
+        dry-run: false
