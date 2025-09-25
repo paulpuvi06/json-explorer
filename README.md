@@ -14,24 +14,24 @@ A simple JSON parser and viewer built with Next.js. Parse, analyze, and export J
 ## Quick Start
 
 ### Docker (Local Build)
-\`\`\`bash
+```bash
 docker compose up json-parser
 # Access at http://localhost:3000
-\`\`\`
+```
 
 ### Docker (From GHCR)
-\`\`\`bash
+```bash
 # Pull and run latest image
 docker run -p 3000:3000 ghcr.io/paulpuvi06/json-parser:latest
 # Access at http://localhost:3000
-\`\`\`
+```
 
 ### Local Development
-\`\`\`bash
+```bash
 pnpm install
 pnpm run dev
 # Access at http://localhost:3000
-\`\`\`
+```
 
 ## How It Works
 
