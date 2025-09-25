@@ -38,6 +38,10 @@ interface FilterState {
   type: "dropdown" | "search"
 }
 
+interface FilterLogic {
+  operator: "AND" | "OR"
+}
+
 interface SortState {
   column: string
   direction: "asc" | "desc"
@@ -48,6 +52,7 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
   const [copied, setCopied] = useState<string | null>(null)
   const [filters, setFilters] = useState<FilterState[]>([])
+  const [filterLogic, setFilterLogic] = useState<FilterLogic>({ operator: "AND" })
   const [excludedFields, setExcludedFields] = useState<Set<string>>(new Set())
   const [showExportOptions, setShowExportOptions] = useState(false)
   const [columnOrder, setColumnOrder] = useState<string[]>([])
@@ -59,6 +64,7 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
     setGroupBy("none")
     setExpandedGroups({})
     setFilters([])
+    setFilterLogic({ operator: "AND" })
     setCopied(null)
     setExcludedFields(new Set())
     setShowExportOptions(false)
@@ -136,7 +142,7 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
     if (filters.length === 0) return tableData
 
     return tableData.filter((row) => {
-      return filters.every((filter) => {
+      const filterResults = filters.map((filter) => {
         if (!filter.value.trim() || filter.value === "default") return true
 
         const cellValue = row[filter.column]
@@ -158,8 +164,15 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
           return cellString.includes(filterValue)
         }
       })
+
+      // Apply AND/OR logic
+      if (filterLogic.operator === "AND") {
+        return filterResults.every(Boolean)
+      } else {
+        return filterResults.some(Boolean)
+      }
     })
-  }, [tableData, filters])
+  }, [tableData, filters, filterLogic])
 
   const sortedTableData = useMemo(() => {
     if (!sortState) return filteredTableData
@@ -258,7 +271,33 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
     )
 
     const csvContent = [headers, ...rows].join("\n")
-    downloadFile(csvContent, "json-data.csv", "text/csv")
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, -5)
+    downloadFile(csvContent, `json-data-${timestamp}.csv`, "text/csv")
+  }
+
+  const exportToTSV = () => {
+    if (sortedTableData.length === 0) return
+
+    const exportColumns = columns.filter((col) => !excludedFields.has(col))
+    const headers = exportColumns.join("\t")
+    const rows = sortedTableData.map((row) =>
+      exportColumns
+        .map((col) => {
+          const value = row[col]
+          if (Array.isArray(value)) {
+            return value.join("; ")
+          }
+          if (typeof value === "object" && value !== null) {
+            return JSON.stringify(value)
+          }
+          return String(value || "")
+        })
+        .join("\t"),
+    )
+
+    const tsvContent = [headers, ...rows].join("\n")
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, -5)
+    downloadFile(tsvContent, `json-data-${timestamp}.tsv`, "text/tab-separated-values")
   }
 
   const exportToJSON = () => {
@@ -273,7 +312,8 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
       return filteredRow
     })
     const jsonContent = JSON.stringify(exportData, null, 2)
-    downloadFile(jsonContent, "json-data.json", "application/json")
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, -5)
+    downloadFile(jsonContent, `json-data-${timestamp}.json`, "application/json")
   }
 
   const downloadFile = (content: string, filename: string, mimeType: string) => {
@@ -442,6 +482,7 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
 
   const clearAllFilters = () => {
     setFilters([])
+    setFilterLogic({ operator: "AND" }) // Reset logic when clearing filters
   }
 
   const expandAll = () => {
@@ -514,92 +555,151 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
   }
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 justify-between">
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium">Group by:</label>
-                <Select value={groupBy} onValueChange={setGroupBy}>
-                  <SelectTrigger className="w-48">
-                    <SelectValue placeholder="Select field to group by" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No grouping</SelectItem>
-                    {columns.map((col) => (
-                      <SelectItem key={col} value={col}>
-                        {col}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+    <div className="space-y-4">
+      <Card className="border border-muted/50 shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col space-y-4">
+            {/* Top row - Group by and expand/collapse controls */}
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-foreground whitespace-nowrap">Group by:</label>
+                  <Select value={groupBy} onValueChange={setGroupBy}>
+                    <SelectTrigger className="w-full sm:w-48 h-9 bg-background border border-muted hover:border-muted-foreground/50 transition-colors">
+                      <SelectValue placeholder="Select field to group by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No grouping</SelectItem>
+                      {columns.map((col) => (
+                        <SelectItem key={col} value={col}>
+                          {col}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {groupBy !== "none" && Object.keys(groupedData).length > 1 && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={expandAll}
+                      className="h-8 bg-background hover:bg-muted"
+                    >
+                      <ChevronDown className="h-3 w-3 mr-1" />
+                      <span className="hidden sm:inline">Expand All</span>
+                      <span className="sm:hidden">Expand</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={collapseAll}
+                      className="h-8 bg-background hover:bg-muted"
+                    >
+                      <ChevronRight className="h-3 w-3 mr-1" />
+                      <span className="hidden sm:inline">Collapse All</span>
+                      <span className="sm:hidden">Collapse</span>
+                    </Button>
+                  </div>
+                )}
               </div>
 
-              {groupBy !== "none" && Object.keys(groupedData).length > 1 && (
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={expandAll}>
-                    <ChevronDown className="h-4 w-4 mr-1" />
-                    Expand All
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={collapseAll}>
-                    <ChevronRight className="h-4 w-4 mr-1" />
-                    Collapse All
-                  </Button>
-                </div>
-              )}
-
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs">
+              {/* Stats badges */}
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge
+                  variant="outline"
+                  className="text-xs font-medium bg-primary/10 text-primary border-primary/20 h-6"
+                >
                   {sortedTableData.length} of {tableData.length} {tableData.length === 1 ? "row" : "rows"}
                 </Badge>
-                <Badge variant="outline" className="text-xs">
+                <Badge
+                  variant="outline"
+                  className="text-xs font-medium bg-secondary/10 text-secondary-foreground border-secondary/20 h-6"
+                >
                   {columns.length} {columns.length === 1 ? "column" : "columns"}
                 </Badge>
                 {sortState && (
-                  <Badge variant="secondary" className="text-xs">
+                  <Badge variant="secondary" className="text-xs font-medium h-6">
                     Sorted by {sortState.column} ({sortState.direction})
+                  </Badge>
+                )}
+                {filters.length > 0 && (
+                  <Badge variant="outline" className="text-xs font-medium bg-blue-50 text-blue-700 border-blue-200 h-6">
+                    {filters.length} filter{filters.length === 1 ? "" : "s"} ({filterLogic.operator})
                   </Badge>
                 )}
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setShowExportOptions(!showExportOptions)}>
-                Export Options
+            {/* Export controls */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t border-muted/50">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowExportOptions(!showExportOptions)}
+                className="w-full sm:w-auto h-8 bg-background hover:bg-muted border"
+              >
+                {showExportOptions ? "Hide" : "Show"} Export Options
               </Button>
-              <Button variant="outline" size="sm" onClick={exportToCSV}>
-                <FileSpreadsheet className="h-4 w-4 mr-1" />
-                CSV
-              </Button>
-              <Button variant="outline" size="sm" onClick={exportToJSON}>
-                <FileText className="h-4 w-4 mr-1" />
-                JSON
-              </Button>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={exportToCSV}
+                  className="flex-1 sm:flex-none h-8 bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                >
+                  <FileSpreadsheet className="h-3 w-3 mr-1" />
+                  CSV
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={exportToTSV}
+                  className="flex-1 sm:flex-none h-8 bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                >
+                  <FileText className="h-3 w-3 mr-1" />
+                  TSV
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={exportToJSON}
+                  className="flex-1 sm:flex-none h-8 bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200"
+                >
+                  <FileText className="h-3 w-3 mr-1" />
+                  JSON
+                </Button>
+              </div>
             </div>
           </div>
 
           {showExportOptions && (
-            <div className="mt-4 p-4 bg-muted rounded-lg">
-              <h4 className="text-sm font-medium mb-3">Select fields to exclude from export:</h4>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className="mt-4 p-4 bg-gradient-to-br from-muted/30 to-muted/60 rounded-lg border border-muted">
+              <h4 className="text-sm font-medium mb-3 text-foreground">Export Configuration</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
                 {columns.map((col) => (
-                  <div key={col} className="flex items-center space-x-2">
+                  <div
+                    key={col}
+                    className="flex items-center space-x-2 p-2 rounded-md bg-background/50 hover:bg-background transition-colors"
+                  >
                     <Checkbox
                       id={`exclude-${col}`}
                       checked={excludedFields.has(col)}
                       onCheckedChange={() => toggleFieldExclusion(col)}
+                      className="border"
                     />
-                    <label htmlFor={`exclude-${col}`} className="text-sm font-medium">
+                    <label htmlFor={`exclude-${col}`} className="text-sm font-medium truncate cursor-pointer">
                       {col}
                     </label>
                   </div>
                 ))}
               </div>
               {excludedFields.size > 0 && (
-                <div className="mt-3">
-                  <Badge variant="secondary" className="text-xs">
-                    {excludedFields.size} field{excludedFields.size === 1 ? "" : "s"} excluded
+                <div className="mt-3 flex items-center gap-2">
+                  <Badge variant="secondary" className="text-xs font-medium h-6">
+                    {excludedFields.size} field{excludedFields.size === 1 ? "" : "s"} excluded from export
                   </Badge>
                 </div>
               )}
@@ -608,38 +708,93 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
         </CardHeader>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Filter className="h-4 w-4" />
-              Filters
-              {filters.length > 0 && (
-                <Badge variant="secondary" className="text-xs">
-                  {filters.length} active
-                </Badge>
-              )}
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={addFilter}>
-                <Plus className="h-4 w-4 mr-1" />
-                Add Filter
-              </Button>
-              {filters.length > 0 && (
-                <Button variant="outline" size="sm" onClick={clearAllFilters}>
-                  Clear All
-                </Button>
-              )}
+      <Card className="border border-muted/50 shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Filter className="h-4 w-4 text-primary" />
+                Advanced Filters
+                {filters.length > 0 && (
+                  <Badge variant="secondary" className="text-xs font-medium h-6">
+                    {filters.length} active
+                  </Badge>
+                )}
+              </CardTitle>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                {filters.length > 1 && (
+                  <div className="flex items-center gap-1 p-1 bg-muted rounded-md">
+                    <Button
+                      variant={filterLogic.operator === "AND" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setFilterLogic({ operator: "AND" })}
+                      className="h-7 px-2 text-xs font-medium"
+                    >
+                      AND
+                    </Button>
+                    <Button
+                      variant={filterLogic.operator === "OR" ? "default" : "ghost"}
+                      size="sm"
+                      onClick={() => setFilterLogic({ operator: "OR" })}
+                      className="h-7 px-2 text-xs font-medium"
+                    >
+                      OR
+                    </Button>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={addFilter}
+                    className="flex-1 sm:flex-none h-8 bg-primary/10 hover:bg-primary/20 text-primary border-primary/30"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    <span className="hidden sm:inline">Add Filter</span>
+                    <span className="sm:hidden">Add</span>
+                  </Button>
+                  {filters.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearAllFilters}
+                      className="flex-1 sm:flex-none h-8 bg-destructive/10 hover:bg-destructive/20 text-destructive border-destructive/30"
+                    >
+                      <span className="hidden sm:inline">Clear All</span>
+                      <span className="sm:hidden">Clear</span>
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
+
+            {filters.length > 1 && (
+              <div className="text-xs text-muted-foreground bg-muted/30 rounded-md p-2">
+                <strong>Filter Logic:</strong>{" "}
+                {filterLogic.operator === "AND" ? "All conditions must be met" : "Any condition can be met"}
+                {filterLogic.operator === "AND" ? " (more restrictive)" : " (more inclusive)"}
+              </div>
+            )}
           </div>
         </CardHeader>
+
         {filters.length > 0 && (
-          <CardContent>
+          <CardContent className="pt-0">
             <div className="space-y-3">
               {filters.map((filter, index) => (
-                <div key={index} className="flex items-center gap-3 p-3 bg-muted rounded-lg">
+                <div
+                  key={index}
+                  className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:items-center sm:gap-3 p-3 bg-gradient-to-r from-muted/20 to-muted/40 rounded-lg border border-muted/50 hover:border-muted transition-colors"
+                >
+                  {/* Filter number indicator */}
+                  <div className="flex items-center justify-center w-6 h-6 bg-primary/10 text-primary rounded-full text-xs font-bold">
+                    {index + 1}
+                  </div>
+
                   <Select value={filter.column} onValueChange={(value) => updateFilter(index, "column", value)}>
-                    <SelectTrigger className="w-48">
+                    <SelectTrigger className="w-full sm:w-48 h-8 bg-background border border-muted hover:border-muted-foreground/50">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -655,7 +810,7 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
                     value={filter.type}
                     onValueChange={(value: "dropdown" | "search") => updateFilter(index, "type", value)}
                   >
-                    <SelectTrigger className="w-32">
+                    <SelectTrigger className="w-full sm:w-32 h-8 bg-background border border-muted hover:border-muted-foreground/50">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -666,7 +821,7 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
 
                   {filter.type === "dropdown" ? (
                     <Select value={filter.value} onValueChange={(value) => updateFilter(index, "value", value)}>
-                      <SelectTrigger className="flex-1">
+                      <SelectTrigger className="flex-1 h-8 bg-background border border-muted hover:border-muted-foreground/50">
                         <SelectValue placeholder="Select value..." />
                       </SelectTrigger>
                       <SelectContent>
@@ -689,12 +844,17 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
                       value={filter.value}
                       onChange={(e) => updateFilter(index, "value", e.target.value)}
                       placeholder="Type to search..."
-                      className="flex-1 h-10 px-3 py-2 text-sm bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="flex-1 h-8 px-3 py-1 text-sm bg-background border border-muted rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary hover:border-muted-foreground/50 transition-colors"
                     />
                   )}
 
-                  <Button variant="outline" size="sm" onClick={() => removeFilter(index)}>
-                    <X className="h-4 w-4" />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => removeFilter(index)}
+                    className="w-full sm:w-auto h-8 bg-destructive/10 hover:bg-destructive/20 text-destructive border-destructive/30"
+                  >
+                    <X className="h-3 w-3" />
                   </Button>
                 </div>
               ))}
@@ -704,10 +864,25 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
       </Card>
 
       {sortedTableData.length === 0 && tableData.length > 0 && (
-        <div className="text-center py-8 text-muted-foreground">
-          <p>No results match your filters</p>
-          <p className="text-sm">Try adjusting your filter criteria</p>
-        </div>
+        <Card className="border-2 border-dashed border-muted">
+          <CardContent className="text-center py-12">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center">
+                <Filter className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-lg font-medium text-foreground">No results match your filters</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Try adjusting your filter criteria or switching to {filterLogic.operator === "AND" ? "OR" : "AND"}{" "}
+                  logic
+                </p>
+              </div>
+              <Button variant="outline" onClick={clearAllFilters} className="mt-2 bg-transparent">
+                Clear All Filters
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       <div className="space-y-4">
@@ -716,15 +891,20 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
           const showGroupHeader = groupBy !== "none"
 
           return (
-            <Card key={groupKey}>
+            <Card key={groupKey} className="border border-muted/50 shadow-sm hover:shadow-md transition-shadow">
               {showGroupHeader && (
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => toggleGroup(groupKey)}>
-                      {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                <CardHeader className="bg-gradient-to-r from-muted/20 to-muted/40 border-b border-muted/50 py-3">
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 hover:bg-background/50"
+                      onClick={() => toggleGroup(groupKey)}
+                    >
+                      {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                     </Button>
-                    <span>{groupKey}</span>
-                    <Badge variant="secondary" className="text-xs">
+                    <span className="font-medium">{groupKey}</span>
+                    <Badge variant="secondary" className="text-xs font-medium bg-primary/10 text-primary h-5">
                       {groupRows.length} {groupRows.length === 1 ? "item" : "items"}
                     </Badge>
                   </CardTitle>
@@ -732,86 +912,91 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
               )}
 
               {isExpanded && (
-                <CardContent className={showGroupHeader ? "pt-0" : ""}>
-                  <div className="rounded-lg border overflow-auto max-h-96 custom-scrollbar">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          {columns.map((col) => (
-                            <TableHead
-                              key={col}
-                              className={cn(
-                                "font-medium draggable-header cursor-pointer select-none",
-                                draggedColumn === col && "dragging",
-                                expandedColumns.has(col) ? "min-w-80 max-w-none" : "min-w-32 max-w-48",
-                              )}
-                              draggable
-                              onDragStart={(e) => handleDragStart(e, col)}
-                              onDragOver={handleDragOver}
-                              onDrop={(e) => handleDrop(e, col)}
-                              onDragEnd={handleDragEnd}
-                            >
-                              <div className="flex items-center gap-2 justify-between">
-                                <div className="flex items-center gap-2">
-                                  <GripVertical className="h-4 w-4 text-muted-foreground" />
-                                  <span className="truncate">{col}</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      toggleColumnExpansion(col)
-                                    }}
-                                    title={expandedColumns.has(col) ? "Collapse column" : "Expand column"}
-                                  >
-                                    <Expand className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0"
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      handleSort(col)
-                                    }}
-                                    title="Sort column"
-                                  >
-                                    {sortState?.column === col ? (
-                                      sortState.direction === "asc" ? (
-                                        <ArrowUp className="h-3 w-3" />
-                                      ) : (
-                                        <ArrowDown className="h-3 w-3" />
-                                      )
-                                    ) : (
-                                      <ArrowUpDown className="h-3 w-3" />
-                                    )}
-                                  </Button>
-                                </div>
-                              </div>
-                            </TableHead>
-                          ))}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {groupRows.map((row, rowIndex) => (
-                          <TableRow key={row._index || rowIndex} className="table-row-hover">
+                <CardContent className={cn("p-0", showGroupHeader ? "" : "pt-4")}>
+                  <div className="rounded-lg overflow-auto max-h-[500px] custom-scrollbar">
+                    <div className="min-w-full">
+                      <Table>
+                        <TableHeader className="sticky top-0 bg-background/95 backdrop-blur-sm border-b border-muted">
+                          <TableRow>
                             {columns.map((col) => (
-                              <TableCell
+                              <TableHead
                                 key={col}
-                                className={cn("py-3", expandedColumns.has(col) ? "max-w-none" : "max-w-48")}
+                                className={cn(
+                                  "font-medium draggable-header cursor-pointer select-none bg-muted/30 hover:bg-muted/50 transition-colors py-2",
+                                  draggedColumn === col && "dragging opacity-50",
+                                  expandedColumns.has(col) ? "min-w-80 max-w-none" : "min-w-32 max-w-48",
+                                )}
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, col)}
+                                onDragOver={handleDragOver}
+                                onDrop={(e) => handleDrop(e, col)}
+                                onDragEnd={handleDragEnd}
                               >
-                                <div className={expandedColumns.has(col) ? "" : "truncate"}>
-                                  {renderCellValue(row[col], rowIndex, col)}
+                                <div className="flex items-center gap-2 justify-between">
+                                  <div className="flex items-center gap-1">
+                                    <GripVertical className="h-3 w-3 text-muted-foreground hover:text-foreground transition-colors" />
+                                    <span className="truncate font-medium text-sm">{col}</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-5 w-5 p-0 hover:bg-background/80"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        toggleColumnExpansion(col)
+                                      }}
+                                      title={expandedColumns.has(col) ? "Collapse column" : "Expand column"}
+                                    >
+                                      <Expand className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-5 w-5 p-0 hover:bg-background/80"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleSort(col)
+                                      }}
+                                      title="Sort column"
+                                    >
+                                      {sortState?.column === col ? (
+                                        sortState.direction === "asc" ? (
+                                          <ArrowUp className="h-3 w-3 text-primary" />
+                                        ) : (
+                                          <ArrowDown className="h-3 w-3 text-primary" />
+                                        )
+                                      ) : (
+                                        <ArrowUpDown className="h-3 w-3" />
+                                      )}
+                                    </Button>
+                                  </div>
                                 </div>
-                              </TableCell>
+                              </TableHead>
                             ))}
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {groupRows.map((row, rowIndex) => (
+                            <TableRow
+                              key={row._index || rowIndex}
+                              className="table-row-hover hover:bg-muted/20 transition-colors"
+                            >
+                              {columns.map((col) => (
+                                <TableCell
+                                  key={col}
+                                  className={cn("py-2", expandedColumns.has(col) ? "max-w-none" : "max-w-48")}
+                                >
+                                  <div className={expandedColumns.has(col) ? "" : "truncate"}>
+                                    {renderCellValue(row[col], rowIndex, col)}
+                                  </div>
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
                 </CardContent>
               )}

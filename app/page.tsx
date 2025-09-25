@@ -84,15 +84,17 @@ export default function JsonParserApp() {
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2 text-balance">JSON Data Parser</h1>
-          <p className="text-muted-foreground text-lg text-pretty">
+          <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-2 text-balance">JSON Data Parser</h1>
+          <p className="text-muted-foreground text-base sm:text-lg text-pretty">
             Parse, filter, and analyze JSON data with advanced table views
           </p>
-          <div className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-            <Shield className="h-4 w-4" />
-            <span>
-              All data is processed locally in your browser - Data exists only in browser memory during the session
-            </span>
+          <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              <span>All data is processed locally in your browser</span>
+            </div>
+            <span className="hidden sm:inline">-</span>
+            <span>Data exists only in browser memory during the session</span>
           </div>
           <div className="mt-2 text-xs text-muted-foreground bg-muted/50 rounded-lg p-3 max-w-2xl mx-auto">
             <p>
@@ -148,7 +150,8 @@ export default function JsonParserApp() {
               <div className="flex flex-wrap gap-2">
                 <Button onClick={validateAndParseJson} className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4" />
-                  Parse & Analyze
+                  <span className="hidden sm:inline">Parse & Analyze</span>
+                  <span className="sm:hidden">Parse</span>
                 </Button>
                 <Button variant="outline" onClick={formatJson} disabled={!parsedJson}>
                   Format
@@ -157,7 +160,8 @@ export default function JsonParserApp() {
                   Minify
                 </Button>
                 <Button variant="outline" onClick={clearAll}>
-                  Clear All
+                  <span className="hidden sm:inline">Clear All</span>
+                  <span className="sm:hidden">Clear</span>
                 </Button>
               </div>
 
