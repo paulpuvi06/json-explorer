@@ -16,6 +16,13 @@ updates:
     labels:
       - "dependencies"
       - "npm"
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
   # Enable version updates for Docker
   - package-ecosystem: "docker"

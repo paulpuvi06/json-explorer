@@ -14,46 +14,33 @@ A simple JSON parser and viewer built with Next.js. Parse, analyze, and export J
 ## Quick Start
 
 ### Docker (Local Build)
-\`\`\`bash
+```bash
 docker compose up json-parser
 # Access at http://localhost:3000
-\`\`\`
+```
 
 ### Docker (From GHCR)
-\`\`\`bash
+```bash
 # Pull and run latest image
 docker run -p 3000:3000 ghcr.io/paulpuvi06/json-parser:latest
-
-
 # Access at http://localhost:3000
-\`\`\`
+```
 
 ### Local Development
-\`\`\`bash
+```bash
 pnpm install
 pnpm run dev
 # Access at http://localhost:3000
-\`\`\`
+```
 
 ## How It Works
 
-### Data Flow
 1. **Input** - Paste JSON text or upload file
 2. **Parse** - Validates and converts to table format
 3. **Display** - Shows data in sortable/filterable/groupable table
-4. **Export** - Download results in JSON or CSV format
+4. **Export** - Download results in JSON or CSV format with field exclusion options
 
-### Export Options
-- **Format** - Choose JSON or CSV
-- **Field Exclusion** - Hide specific columns before exporting
-- **Filtered Data** - Export only visible/filtered rows
-- **Custom Selection** - Select which fields to include
-
-### Data Storage
-- **No server storage** - Everything runs in your browser
-- **Temporary only** - Data disappears when you refresh/close tab
-- **No tracking** - No cookies or data collection
-- **Privacy first** - Your data never leaves your device
+**Privacy**: Everything runs in your browser - no server storage, no tracking, data disappears when you close the tab.
 
 ## License
 
