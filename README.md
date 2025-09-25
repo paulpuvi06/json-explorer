@@ -25,17 +25,18 @@ A powerful JSON configuration parser that runs entirely in your browser. Parse, 
 **Production:**
 \`\`\`bash
 # Build and run production container
-docker-compose --profile prod up --build
+docker compose up json-parser
 
 # Access at http://localhost:3000
 \`\`\`
 
-**Development with hot reload:**
+**Using pre-built image from GHCR:**
 \`\`\`bash
-# Run development container with live reloading
-docker-compose --profile dev up --build
+# Pull and run the latest image
+docker run -p 3000:3000 ghcr.io/paul/json-parser:latest
 
-# Access at http://localhost:3001
+# Or use a specific version
+docker run -p 3000:3000 ghcr.io/paul/json-parser:v1.0.0
 \`\`\`
 
 ### Local Development
@@ -100,10 +101,15 @@ This project can be deployed as a static site to any hosting platform:
 
 The project includes an optimized Docker configuration:
 
-- **Single Dockerfile**: Handles both production and development modes through build arguments
-- **Production Mode**: Multi-stage build with Next.js standalone output for optimal performance
-- **Development Mode**: Hot reload support with volume mounting for live development
-- **Docker Compose Profiles**: Easy switching between `prod` and `dev` environments
+- **Production Dockerfile**: Multi-stage build with Next.js standalone output for optimal performance
+- **Multi-architecture Support**: Builds for both AMD64 and ARM64 architectures
+- **GitHub Container Registry**: Automated builds and pushes to `ghcr.io/paul/json-parser`
+- **Docker Compose**: Simple production deployment with `docker compose up json-parser`
+
+**Available Docker Images:**
+- `ghcr.io/paul/json-parser:latest` - Latest build from main branch
+- `ghcr.io/paul/json-parser:v1.0.0` - Tagged releases
+- `ghcr.io/paul/json-parser:main` - Specific branch builds
 
 ## Privacy
 
