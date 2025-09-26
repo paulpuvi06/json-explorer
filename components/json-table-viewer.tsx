@@ -415,16 +415,26 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
     }
 
     if (typeof value === "object" && value !== null) {
+      const isArray = Array.isArray(value)
+      const keys = Object.keys(value)
+      const preview = isArray 
+        ? `[${keys.length} items]` 
+        : `{${keys.slice(0, 3).join(', ')}${keys.length > 3 ? '...' : ''}}`
+      
       return (
         <div className="flex items-center gap-2 group">
           <Badge variant="outline" className={cn("text-xs", colorClass)}>
-            {Object.keys(value).length} properties
+            {isArray ? `${keys.length} items` : `${keys.length} properties`}
           </Badge>
+          <span className="text-xs text-muted-foreground font-mono">
+            {preview}
+          </span>
           <Button
             variant="ghost"
             size="sm"
             className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100"
-            onClick={() => copyToClipboard(JSON.stringify(value), cellKey)}
+            onClick={() => copyToClipboard(JSON.stringify(value, null, 2), cellKey)}
+            title="Copy full object"
           >
             {copied === cellKey ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
           </Button>
