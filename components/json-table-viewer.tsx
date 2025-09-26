@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils"
 
 interface JsonTableViewerProps {
   data: any
+  showStatsOnly?: boolean
 }
 
 interface FilterState {
@@ -47,7 +48,7 @@ interface SortState {
   direction: "asc" | "desc"
 }
 
-export function JsonTableViewer({ data }: JsonTableViewerProps) {
+export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewerProps) {
   const [groupBy, setGroupBy] = useState<string>("none")
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
   const [copied, setCopied] = useState<string | null>(null)
@@ -546,10 +547,48 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
   }
 
   if (sortedTableData.length === 0 && tableData.length === 0) {
-    return (
+    return showStatsOnly ? null : (
       <div className="text-center py-8 text-muted-foreground">
         <p>No tabular data to display</p>
         <p className="text-sm">JSON data must be an array or object to show in table format</p>
+      </div>
+    )
+  }
+
+  // Stats only view for header
+  if (showStatsOnly) {
+    const hasFilters = filters.length > 0
+    const isFiltered = sortedTableData.length !== tableData.length
+    
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge
+          variant="outline"
+          className={`text-xs font-medium h-7 px-3 ${
+            isFiltered 
+              ? "bg-orange-50 text-orange-700 border-orange-200" 
+              : "bg-primary/10 text-primary border-primary/20"
+          }`}
+        >
+          {sortedTableData.length} of {tableData.length} {tableData.length === 1 ? "row" : "rows"}
+          {isFiltered && " (filtered)"}
+        </Badge>
+        <Badge
+          variant="outline"
+          className="text-xs font-medium bg-secondary/10 text-secondary-foreground border-secondary/20 h-7 px-3"
+        >
+          {columns.length} {columns.length === 1 ? "column" : "columns"}
+        </Badge>
+        {sortState && (
+          <Badge variant="secondary" className="text-xs font-medium h-7 px-3">
+            Sorted by {sortState.column} ({sortState.direction})
+          </Badge>
+        )}
+        {hasFilters && (
+          <Badge variant="outline" className="text-xs font-medium bg-blue-50 text-blue-700 border-blue-200 h-7 px-3">
+            {filters.length} filter{filters.length === 1 ? "" : "s"} ({filterLogic.operator})
+          </Badge>
+        )}
       </div>
     )
   }
@@ -559,120 +598,105 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
       <Card className="border border-muted/50 shadow-sm">
         <CardHeader className="pb-3">
           <div className="flex flex-col space-y-4">
-            {/* Top row - Group by and expand/collapse controls */}
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            {/* Top row - Group by, expand/collapse controls, and export */}
+            <div className="bg-gradient-to-r from-muted/20 to-muted/10 rounded-lg p-4 border border-muted/30">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-foreground whitespace-nowrap">Group by:</label>
+                    <Select value={groupBy} onValueChange={setGroupBy}>
+                      <SelectTrigger className="w-full sm:w-48 h-9 bg-background border border-muted hover:border-muted-foreground/50 transition-colors shadow-sm">
+                        <SelectValue placeholder="Select field to group by" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No grouping</SelectItem>
+                        {columns.map((col) => (
+                          <SelectItem key={col} value={col}>
+                            {col}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {groupBy !== "none" && (
+                      <Badge 
+                        variant="secondary" 
+                        className="text-xs font-medium h-7 px-2 bg-blue-50 text-blue-700 border-blue-200 shadow-sm"
+                      >
+                        {Object.keys(groupedData).length} group{Object.keys(groupedData).length === 1 ? "" : "s"}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {groupBy !== "none" && Object.keys(groupedData).length > 1 && (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={expandAll}
+                        className="h-8 w-8 p-0 bg-background hover:bg-muted shadow-sm"
+                        title="Expand All"
+                      >
+                        <ChevronDown className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={collapseAll}
+                        className="h-8 w-8 p-0 bg-background hover:bg-muted shadow-sm"
+                        title="Collapse All"
+                      >
+                        <ChevronRight className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Export options and dropdown */}
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-medium text-foreground whitespace-nowrap">Group by:</label>
-                  <Select value={groupBy} onValueChange={setGroupBy}>
-                    <SelectTrigger className="w-full sm:w-48 h-9 bg-background border border-muted hover:border-muted-foreground/50 transition-colors">
-                      <SelectValue placeholder="Select field to group by" />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowExportOptions(!showExportOptions)}
+                    className="h-8 bg-background hover:bg-muted border shadow-sm"
+                  >
+                    {showExportOptions ? "Hide" : "Show"} Export Options
+                  </Button>
+                  <Select onValueChange={(value) => {
+                    if (value === 'csv') exportToCSV()
+                    if (value === 'tsv') exportToTSV()
+                    if (value === 'json') exportToJSON()
+                  }}>
+                    <SelectTrigger className="w-full sm:w-36 h-8 bg-background border border-muted hover:border-muted-foreground/50 transition-colors shadow-sm">
+                      <div className="flex items-center gap-1">
+                        <FileSpreadsheet className="h-3 w-3" />
+                        <span className="text-sm">Export</span>
+                      </div>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">No grouping</SelectItem>
-                      {columns.map((col) => (
-                        <SelectItem key={col} value={col}>
-                          {col}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="csv">
+                        <div className="flex items-center gap-2">
+                          <FileSpreadsheet className="h-3 w-3 text-green-600" />
+                          <span>CSV</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="tsv">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-3 w-3 text-blue-600" />
+                          <span>TSV</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="json">
+                        <div className="flex items-center gap-2">
+                          <FileText className="h-3 w-3 text-purple-600" />
+                          <span>JSON</span>
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-
-                {groupBy !== "none" && Object.keys(groupedData).length > 1 && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={expandAll}
-                      className="h-8 bg-background hover:bg-muted"
-                    >
-                      <ChevronDown className="h-3 w-3 mr-1" />
-                      <span className="hidden sm:inline">Expand All</span>
-                      <span className="sm:hidden">Expand</span>
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={collapseAll}
-                      className="h-8 bg-background hover:bg-muted"
-                    >
-                      <ChevronRight className="h-3 w-3 mr-1" />
-                      <span className="hidden sm:inline">Collapse All</span>
-                      <span className="sm:hidden">Collapse</span>
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              {/* Stats badges */}
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge
-                  variant="outline"
-                  className="text-xs font-medium bg-primary/10 text-primary border-primary/20 h-6"
-                >
-                  {sortedTableData.length} of {tableData.length} {tableData.length === 1 ? "row" : "rows"}
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className="text-xs font-medium bg-secondary/10 text-secondary-foreground border-secondary/20 h-6"
-                >
-                  {columns.length} {columns.length === 1 ? "column" : "columns"}
-                </Badge>
-                {sortState && (
-                  <Badge variant="secondary" className="text-xs font-medium h-6">
-                    Sorted by {sortState.column} ({sortState.direction})
-                  </Badge>
-                )}
-                {filters.length > 0 && (
-                  <Badge variant="outline" className="text-xs font-medium bg-blue-50 text-blue-700 border-blue-200 h-6">
-                    {filters.length} filter{filters.length === 1 ? "" : "s"} ({filterLogic.operator})
-                  </Badge>
-                )}
               </div>
             </div>
 
-            {/* Export controls */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3 border-t border-muted/50">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowExportOptions(!showExportOptions)}
-                className="w-full sm:w-auto h-8 bg-background hover:bg-muted border"
-              >
-                {showExportOptions ? "Hide" : "Show"} Export Options
-              </Button>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={exportToCSV}
-                  className="flex-1 sm:flex-none h-8 bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
-                >
-                  <FileSpreadsheet className="h-3 w-3 mr-1" />
-                  CSV
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={exportToTSV}
-                  className="flex-1 sm:flex-none h-8 bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
-                >
-                  <FileText className="h-3 w-3 mr-1" />
-                  TSV
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={exportToJSON}
-                  className="flex-1 sm:flex-none h-8 bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200"
-                >
-                  <FileText className="h-3 w-3 mr-1" />
-                  JSON
-                </Button>
-              </div>
-            </div>
           </div>
 
           {showExportOptions && (
@@ -712,15 +736,29 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
         <CardHeader className="pb-3">
           <div className="flex flex-col space-y-3">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Filter className="h-4 w-4 text-primary" />
-                Advanced Filters
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Filter className="h-4 w-4 text-primary" />
+                  Advanced Filters
+                  {filters.length > 0 && (
+                    <Badge variant="secondary" className="text-xs font-medium h-6">
+                      {filters.length} active
+                    </Badge>
+                  )}
+                </CardTitle>
                 {filters.length > 0 && (
-                  <Badge variant="secondary" className="text-xs font-medium h-6">
-                    {filters.length} active
+                  <Badge
+                    variant="outline"
+                    className={`text-xs font-medium h-6 px-2 ${
+                      sortedTableData.length !== tableData.length
+                        ? "bg-orange-50 text-orange-700 border-orange-200"
+                        : "bg-green-50 text-green-700 border-green-200"
+                    }`}
+                  >
+                    {sortedTableData.length} of {tableData.length} entries found
                   </Badge>
                 )}
-              </CardTitle>
+              </div>
 
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                 {filters.length > 1 && (
@@ -893,25 +931,25 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
           return (
             <Card key={groupKey} className="border border-muted/50 shadow-sm hover:shadow-md transition-shadow">
               {showGroupHeader && (
-                <CardHeader className="bg-gradient-to-r from-muted/20 to-muted/40 border-b border-muted/50 py-3">
-                  <CardTitle className="flex items-center gap-2 text-sm">
+                <div className="bg-gradient-to-r from-muted/20 to-muted/40 border-b border-muted/50 px-4 py-2">
+                  <div className="flex items-center gap-2 text-sm">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 w-6 p-0 hover:bg-background/50"
+                      className="h-5 w-5 p-0 hover:bg-background/50"
                       onClick={() => toggleGroup(groupKey)}
                     >
                       {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                     </Button>
                     <span className="font-medium">{groupKey}</span>
-                    <Badge variant="secondary" className="text-xs font-medium bg-primary/10 text-primary h-5">
+                    <Badge variant="secondary" className="text-xs font-medium bg-primary/10 text-primary h-4 px-1.5">
                       {groupRows.length} {groupRows.length === 1 ? "item" : "items"}
                     </Badge>
-                  </CardTitle>
-                </CardHeader>
+                  </div>
+                </div>
               )}
 
-              {isExpanded && (
+              {isExpanded ? (
                 <CardContent className={cn("p-0", showGroupHeader ? "" : "pt-4")}>
                   <div className="rounded-lg overflow-auto max-h-[500px] custom-scrollbar">
                     <div className="min-w-full">
@@ -925,6 +963,7 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
                                   "font-medium draggable-header cursor-pointer select-none bg-muted/30 hover:bg-muted/50 transition-colors py-2",
                                   draggedColumn === col && "dragging opacity-50",
                                   expandedColumns.has(col) ? "min-w-80 max-w-none" : "min-w-32 max-w-48",
+                                  columns.indexOf(col) === 0 && "pl-4",
                                 )}
                                 draggable
                                 onDragStart={(e) => handleDragStart(e, col)}
@@ -985,7 +1024,7 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
                               {columns.map((col) => (
                                 <TableCell
                                   key={col}
-                                  className={cn("py-2", expandedColumns.has(col) ? "max-w-none" : "max-w-48")}
+                                  className={cn("py-2", expandedColumns.has(col) ? "max-w-none" : "max-w-48", columns.indexOf(col) === 0 && "pl-4")}
                                 >
                                   <div className={expandedColumns.has(col) ? "" : "truncate"}>
                                     {renderCellValue(row[col], rowIndex, col)}
@@ -999,7 +1038,7 @@ export function JsonTableViewer({ data }: JsonTableViewerProps) {
                     </div>
                   </div>
                 </CardContent>
-              )}
+              ) : null}
             </Card>
           )
         })}

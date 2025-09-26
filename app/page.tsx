@@ -196,11 +196,16 @@ export default function JsonParserApp() {
           {parsedJson && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Table className="h-5 w-5" />
-                  Data Analysis
-                </CardTitle>
-                <CardDescription>Analyze your data with filtering, grouping, and export options</CardDescription>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Table className="h-5 w-5" />
+                      Data Analysis
+                    </CardTitle>
+                    <CardDescription>Analyze your data with filtering, grouping, and export options</CardDescription>
+                  </div>
+                  <JsonTableViewer key={dataKey} data={parsedJson} showStatsOnly={true} />
+                </div>
               </CardHeader>
               <CardContent>
                 <JsonTableViewer key={dataKey} data={parsedJson} />
