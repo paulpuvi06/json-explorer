@@ -37,6 +37,7 @@ interface FilterState {
   column: string
   value: string
   type: "dropdown" | "search"
+  searchOperator?: "contains" | "not_contains"
 }
 
 interface FilterLogic {
@@ -162,7 +163,15 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
         if (filter.type === "dropdown") {
           return cellString === filterValue
         } else {
-          return cellString.includes(filterValue)
+          // Handle search operators
+          const operator = filter.searchOperator || "contains"
+          
+          if (operator === "not_contains") {
+            return !cellString.includes(filterValue)
+          } else {
+            // Default to "contains"
+            return cellString.includes(filterValue)
+          }
         }
       })
 
@@ -880,13 +889,28 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
                       </SelectContent>
                     </Select>
                   ) : (
-                    <input
-                      type="text"
-                      value={filter.value}
-                      onChange={(e) => updateFilter(index, "value", e.target.value)}
-                      placeholder="Type to search..."
-                      className="flex-1 h-8 px-3 py-1 text-sm bg-background border border-muted rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary hover:border-muted-foreground/50 transition-colors"
-                    />
+                    <div className="flex-1 flex gap-2">
+                      <Select
+                        value={filter.searchOperator || "contains"}
+                        onValueChange={(value: "contains" | "not_contains") => updateFilter(index, "searchOperator", value)}
+                      >
+                        <SelectTrigger className="w-32 h-8 bg-background border border-muted hover:border-muted-foreground/50">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="contains">Contains</SelectItem>
+                          <SelectItem value="not_contains">Not Contains</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      
+                      <input
+                        type="text"
+                        value={filter.value}
+                        onChange={(e) => updateFilter(index, "value", e.target.value)}
+                        placeholder="Type to search..."
+                        className="flex-1 h-8 px-3 py-1 text-sm bg-background border border-muted rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary hover:border-muted-foreground/50 transition-colors"
+                      />
+                    </div>
                   )}
 
                   <Button
