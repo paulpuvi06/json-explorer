@@ -10,7 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { JsonTableViewer } from "@/components/json-table-viewer"
 import { JsonTreeViewer } from "@/components/json-tree-viewer"
 import { FileUpload } from "@/components/file-upload"
-import { CheckCircle, AlertCircle, FileText, Upload, Code, Table, Shield, Zap, Filter, Download, Search, BarChart3, Copy, RotateCcw, RotateCw } from "lucide-react"
+import { UrlFetch } from "@/components/url-fetch"
+import { CheckCircle, AlertCircle, FileText, Upload, Code, Table, Shield, Zap, Filter, Download, Search, BarChart3, Copy, RotateCcw, RotateCw, Moon, Sun } from "lucide-react"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { Spinner } from "@/components/ui/spinner"
+import { Tooltip } from "@/components/ui/tooltip"
 
 export default function JsonParserApp() {
   const [jsonInput, setJsonInput] = useState("")
@@ -295,6 +299,11 @@ export default function JsonParserApp() {
 
   return (
     <div className="min-h-screen bg-background">
+      <div className="fixed top-4 right-4 z-50">
+        <Tooltip content="Toggle light/dark mode">
+          <ThemeToggle />
+        </Tooltip>
+      </div>
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Header */}
         <div className="text-center mb-8">
@@ -357,7 +366,7 @@ export default function JsonParserApp() {
             </CardHeader>
             <CardContent className="space-y-4">
               <Tabs defaultValue="text" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-1 rounded-xl">
+                <TabsList className="grid w-full grid-cols-3 bg-muted/50 p-1 rounded-xl">
                   <TabsTrigger
                     value="text"
                     className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-200 hover:bg-background/50"
@@ -371,6 +380,13 @@ export default function JsonParserApp() {
                   >
                     <Upload className="h-4 w-4" />
                     File Upload
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="url"
+                    className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-200 hover:bg-background/50"
+                  >
+                    <Download className="h-4 w-4" />
+                    From URL
                   </TabsTrigger>
                 </TabsList>
 
@@ -387,72 +403,105 @@ export default function JsonParserApp() {
                       <span>•</span>
                       <span>{jsonInput.split('\n').length} lines</span>
                     </div>
+                    {jsonInput.length > 2000 && (
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        className="absolute top-2 right-2 z-20 animate-bounce bg-primary text-primary-foreground shadow-lg flex items-center gap-2"
+                        style={{ animation: 'bounce 1.2s infinite' }}
+                        onClick={() => {
+                          const el = document.getElementById('data-analysis-section')
+                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        }}
+                        title="Scroll to Data Analysis"
+                      >
+                        <span className="hidden sm:inline">Scroll to Data</span>
+                        <span className="sm:hidden">↓</span>
+                        <svg className="h-5 w-5 animate-pulse ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                      </Button>
+                    )}
                   </div>
                 </TabsContent>
 
                 <TabsContent value="file">
                   <FileUpload onFileContent={handleFileContent} />
                 </TabsContent>
+
+                <TabsContent value="url">
+                  <UrlFetch onUrlContent={handleFileContent} />
+                </TabsContent>
               </Tabs>
 
               <div className="flex flex-wrap gap-2">
-                <Button 
-                  onClick={validateAndParseJson} 
-                  disabled={isLoading}
-                  className="flex items-center gap-2"
-                >
-                  {isLoading ? (
-                    <>
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                      <span className="hidden sm:inline">Parsing...</span>
-                      <span className="sm:hidden">Parsing</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="h-4 w-4" />
-                      <span className="hidden sm:inline">Parse & Analyze</span>
-                      <span className="sm:hidden">Parse</span>
-                    </>
-                  )}
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={formatJson} 
-                  disabled={!parsedJson}
-                  title="Format JSON with proper indentation"
-                >
-                  <Copy className="h-4 w-4" />
-                  <span className="hidden sm:inline">Format</span>
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={minifyJson} 
-                  disabled={!parsedJson}
-                  title="Minify JSON (remove whitespace)"
-                >
-                  <Code className="h-4 w-4" />
-                  <span className="hidden sm:inline">Minify</span>
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={undo} 
-                  disabled={historyIndex <= 0}
-                  title="Undo (Ctrl+Z)"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={redo} 
-                  disabled={historyIndex >= history.length - 1}
-                  title="Redo (Ctrl+Y)"
-                >
-                  <RotateCw className="h-4 w-4" />
-                </Button>
-                <Button variant="outline" onClick={clearAll} title="Clear all data">
-                  <span className="hidden sm:inline">Clear All</span>
-                  <span className="sm:hidden">Clear</span>
-                </Button>
+                <Tooltip content="Parse and analyze JSON (Ctrl+Enter)">
+                  <Button 
+                    onClick={validateAndParseJson} 
+                    disabled={isLoading}
+                    className="flex items-center gap-2"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Spinner className="h-4 w-4 text-primary" />
+                        <span className="hidden sm:inline">Parsing...</span>
+                        <span className="sm:hidden">Parsing</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="h-4 w-4" />
+                        <span className="hidden sm:inline">Parse & Analyze</span>
+                        <span className="sm:hidden">Parse</span>
+                      </>
+                    )}
+                  </Button>
+                </Tooltip>
+                <Tooltip content="Format JSON (pretty print)">
+                  <Button 
+                    variant="outline" 
+                    onClick={formatJson} 
+                    disabled={!parsedJson}
+                    title="Format JSON with proper indentation"
+                  >
+                    <Copy className="h-4 w-4" />
+                    <span className="hidden sm:inline">Format</span>
+                  </Button>
+                </Tooltip>
+                <Tooltip content="Minify JSON (remove whitespace)">
+                  <Button 
+                    variant="outline" 
+                    onClick={minifyJson} 
+                    disabled={!parsedJson}
+                    title="Minify JSON (remove whitespace)"
+                  >
+                    <Code className="h-4 w-4" />
+                    <span className="hidden sm:inline">Minify</span>
+                  </Button>
+                </Tooltip>
+                <Tooltip content="Undo (Ctrl+Z)">
+                  <Button 
+                    variant="outline" 
+                    onClick={undo} 
+                    disabled={historyIndex <= 0}
+                    title="Undo (Ctrl+Z)"
+                  >
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
+                </Tooltip>
+                <Tooltip content="Redo (Ctrl+Y)">
+                  <Button 
+                    variant="outline" 
+                    onClick={redo} 
+                    disabled={historyIndex >= history.length - 1}
+                    title="Redo (Ctrl+Y)"
+                  >
+                    <RotateCw className="h-4 w-4" />
+                  </Button>
+                </Tooltip>
+                <Tooltip content="Clear all data">
+                  <Button variant="outline" onClick={clearAll} title="Clear all data">
+                    <span className="hidden sm:inline">Clear All</span>
+                    <span className="sm:hidden">Clear</span>
+                  </Button>
+                </Tooltip>
               </div>
 
               {/* Status */}
@@ -496,7 +545,7 @@ export default function JsonParserApp() {
 
           {/* Data Analysis Section */}
           {parsedJson && (
-            <Card>
+            <Card id="data-analysis-section">
               <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>

@@ -569,7 +569,6 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
   if (showStatsOnly) {
     const hasFilters = filters.length > 0
     const isFiltered = sortedTableData.length !== tableData.length
-    
     return (
       <div className="flex flex-wrap items-center gap-2">
         <Badge
@@ -580,14 +579,8 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
               : "bg-primary/10 text-primary border-primary/20"
           }`}
         >
-          {sortedTableData.length} of {tableData.length} {tableData.length === 1 ? "row" : "rows"}
+          {sortedTableData.length} rows × {columns.length} columns
           {isFiltered && " (filtered)"}
-        </Badge>
-        <Badge
-          variant="outline"
-          className="text-xs font-medium bg-secondary/10 text-secondary-foreground border-secondary/20 h-7 px-3"
-        >
-          {columns.length} {columns.length === 1 ? "column" : "columns"}
         </Badge>
         {sortState && (
           <Badge variant="secondary" className="text-xs font-medium h-7 px-3">
@@ -1011,12 +1004,12 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
                                     >
                                       {sortState?.column === col ? (
                                         sortState.direction === "asc" ? (
-                                          <ArrowUp className="h-3 w-3 text-primary" />
+                                          <ArrowUp className="h-3 w-3 text-primary transition-transform duration-200" />
                                         ) : (
-                                          <ArrowDown className="h-3 w-3 text-primary" />
+                                          <ArrowDown className="h-3 w-3 text-primary transition-transform duration-200 scale-110 animate-bounce" />
                                         )
                                       ) : (
-                                        <ArrowUpDown className="h-3 w-3" />
+                                        <ArrowUpDown className="h-3 w-3 transition-transform duration-200" />
                                       )}
                                     </Button>
                                   </div>
@@ -1028,7 +1021,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
                         <TableBody>
                           {groupRows.map((row, rowIndex) => (
                             <TableRow
-                              key={row._index || rowIndex}
+                              key={row._key ? `${row._key}-${row._index}` : row._index ?? rowIndex}
                               className="table-row-hover hover:bg-muted/20 transition-colors"
                             >
                               {columns.map((col) => (
