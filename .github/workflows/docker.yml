@@ -38,6 +38,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    environment: ci
+
 
     steps:
     - name: Checkout repository
