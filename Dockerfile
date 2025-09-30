@@ -30,6 +30,10 @@ ARG NODE_ENV=production
 ENV NODE_ENV=${NODE_ENV}
 ENV NEXT_TELEMETRY_DISABLED 1
 
+# Add labels for metadata
+LABEL org.opencontainers.image.title="JSON Parser"
+LABEL org.opencontainers.image.description="JSON data analyzer and viewer"
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
