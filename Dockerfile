@@ -22,26 +22,27 @@ ENV NEXT_TELEMETRY_DISABLED 1
 
 RUN pnpm run build
 
-# Production image, copy all the files and run next
-FROM base AS runner
-WORKDIR /app
+# Production image with nginx
+FROM nginx:alpine AS runner
 
-ARG NODE_ENV=production
-ENV NODE_ENV=${NODE_ENV}
-ENV NEXT_TELEMETRY_DISABLED 1
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/nginx.conf
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Copy static files from Next.js export
+COPY --from=builder /app/out /usr/share/nginx/html
 
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
+# Set permissions for nginx user (UID 101, GID 101)
+RUN chown -R nginx:nginx /usr/share/nginx/html && \
+    chown -R nginx:nginx /var/cache/nginx && \
+    chown -R nginx:nginx /var/log/nginx && \
+    chown -R nginx:nginx /etc/nginx/conf.d && \
+    touch /var/run/nginx.pid && \
+    chown -R nginx:nginx /var/run/nginx.pid && \
+    chmod -R 755 /usr/share/nginx/html
 
-USER nextjs
+# Switch to nginx user
+USER nginx
 
-EXPOSE 3000
+EXPOSE 8080
 
-ENV PORT 3000
-ENV HOSTNAME "0.0.0.0"
-
-CMD ["node", "server.js"]
+CMD ["nginx", "-g", "daemon off;"]

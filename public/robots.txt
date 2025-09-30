@@ -1,0 +1,5 @@
+User-agent: *
+Disallow: /
+
+# Block all web crawlers and search engines
+# This is a JSON parser tool, not meant for indexing
