@@ -1,0 +1,88 @@
+name: Create Tag from Package Version
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'package.json'
+  workflow_dispatch:
+    inputs:
+      force_tag:
+        description: 'Force create tag even if version exists'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  create-tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v5
+      with:
+        fetch-depth: 0  # Fetch all history for tags
+
+    - name: Get package version
+      id: package-version
+      run: |
+        VERSION=$(grep -o '"version": "[^"]*"' package.json | cut -d'"' -f4)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "tag=v$VERSION" >> $GITHUB_OUTPUT
+        echo "Package version: $VERSION"
+        echo "Tag will be: v$VERSION"
+
+    - name: Check if tag already exists
+      id: check-tag
+      run: |
+        TAG="${{ steps.package-version.outputs.tag }}"
+        if git rev-parse "$TAG" >/dev/null 2>&1; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "Tag $TAG already exists"
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "Tag $TAG does not exist"
+        fi
+
+    - name: Create and push tag
+      if: steps.check-tag.outputs.exists == 'false' || github.event.inputs.force_tag == 'true'
+      run: |
+        TAG="${{ steps.package-version.outputs.tag }}"
+        VERSION="${{ steps.package-version.outputs.version }}"
+        
+        # Configure git
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # Create annotated tag
+        git tag -a "$TAG" -m "Release version $VERSION"
+        
+        # Push the tag
+        git push origin "$TAG"
+        
+        echo "✅ Created and pushed tag: $TAG"
+
+    - name: Tag already exists
+      if: steps.check-tag.outputs.exists == 'true' && github.event.inputs.force_tag != 'true'
+      run: |
+        TAG="${{ steps.package-version.outputs.tag }}"
+        echo "⚠️ Tag $TAG already exists. Use 'force_tag: true' to recreate it."
+
+    - name: Summary
+      run: |
+        echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- **Package Version:** ${{ steps.package-version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Git Tag:** ${{ steps.package-version.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Tag Existed:** ${{ steps.check-tag.outputs.exists }}" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ steps.check-tag.outputs.exists }}" == "false" ] || [ "${{ github.event.inputs.force_tag }}" == "true" ]; then
+          echo "- **Status:** ✅ Tag created successfully" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- **Status:** ⚠️ Tag already exists" >> $GITHUB_STEP_SUMMARY
+        fi

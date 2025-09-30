@@ -80,7 +80,6 @@ jobs:
       with:
         images: ${{ env.DOCKERHUB_IMAGE_NAME }}
         tags: |
-          type=raw,value=latest
           type=semver,pattern={{version}}
 
     - name: Build and push Docker image
@@ -95,6 +94,7 @@ jobs:
         labels: ${{ steps.meta-ghcr.outputs.labels }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
+        
 
     - name: Clean up untagged images
       if: github.event_name != 'pull_request' && github.event.inputs.push_to_registry != 'false'
