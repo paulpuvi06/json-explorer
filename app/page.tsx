@@ -40,7 +40,7 @@ export default function JsonParserApp() {
         return Object.values(item).every(value => {
           if (value === null || typeof value !== "object") return true
           if (Array.isArray(value)) {
-            // Arrays of primitives are OK
+            // Arrays of primitives are OK for table view
             return value.every(arrItem => 
               arrItem === null || typeof arrItem !== "object"
             )
@@ -53,15 +53,47 @@ export default function JsonParserApp() {
     
     // For single objects, check if they have nested objects
     if (typeof parsedJson === "object" && parsedJson !== null) {
-      return Object.values(parsedJson).every(value => {
-        if (value === null || typeof value !== "object") return true
-        if (Array.isArray(value)) {
-          return value.every(arrItem => 
-            arrItem === null || typeof arrItem !== "object"
-          )
-        }
-        return false
-      })
+      const values = Object.values(parsedJson)
+      const hasNestedObjects = values.some(
+        (value) => typeof value === "object" && value !== null && !Array.isArray(value)
+      )
+      
+      if (hasNestedObjects) {
+        // Check if all nested objects are flat (suitable for table view)
+        return values.every(value => {
+          if (value === null || typeof value !== "object") return true
+          if (Array.isArray(value)) {
+            // Arrays of primitives are OK for table view
+            return value.every(arrItem => 
+              arrItem === null || typeof arrItem !== "object"
+            )
+          }
+          // Check if nested object is flat (no deeper nesting)
+          return Object.values(value).every(nestedValue => {
+            if (nestedValue === null || typeof nestedValue !== "object") return true
+            if (Array.isArray(nestedValue)) {
+              // Arrays of primitives are OK
+              return nestedValue.every(arrItem => 
+                arrItem === null || typeof arrItem !== "object"
+              )
+            }
+            // Deeper nesting is not flat
+            return false
+          })
+        })
+      } else {
+        // No nested objects, check arrays
+        return values.every(value => {
+          if (value === null || typeof value !== "object") return true
+          if (Array.isArray(value)) {
+            // Arrays of primitives are OK for table view
+            return value.every(arrItem => 
+              arrItem === null || typeof arrItem !== "object"
+            )
+          }
+          return false
+        })
+      }
     }
     
     return true
@@ -297,14 +329,23 @@ export default function JsonParserApp() {
     setDataKey((prev) => prev + 1)
   }
 
+  // Auto-resize textarea when content changes
+  useEffect(() => {
+    const textarea = document.querySelector('textarea[placeholder="Paste your JSON data here..."]') as HTMLTextAreaElement
+    if (textarea) {
+      textarea.style.height = 'auto'
+      textarea.style.height = Math.max(200, Math.min(textarea.scrollHeight, window.innerHeight * 0.6)) + 'px'
+    }
+  }, [jsonInput])
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <div className="fixed top-4 right-4 z-50">
         <Tooltip content="Toggle light/dark mode">
           <ThemeToggle />
         </Tooltip>
       </div>
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="container mx-auto px-4 py-8 max-w-7xl flex-1">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-2 text-balance">JSON Data Viewer</h1>
@@ -347,17 +388,24 @@ export default function JsonParserApp() {
 
         <div className="space-y-6">
           {/* Input Section */}
-          <Card>
-            <CardHeader>
+          <Card className="border-2 border-muted/30 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-background via-background to-muted/5">
+            <CardHeader className="bg-gradient-to-r from-muted/20 to-muted/10 border-b border-muted/30">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Code className="h-5 w-5" />
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <Code className="h-5 w-5 text-primary" />
+                    </div>
                     JSON Input
                   </CardTitle>
-                  <CardDescription>Paste your JSON data or upload a file</CardDescription>
+                  <CardDescription className="text-base mt-1">Paste your JSON data or upload a file</CardDescription>
                 </div>
-                <Button onClick={loadSampleJson} variant="outline" size="sm" className="flex items-center gap-2">
+                <Button 
+                  onClick={loadSampleJson} 
+                  variant="outline" 
+                  size="sm" 
+                  className="flex items-center gap-2 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all duration-200 border-muted/50"
+                >
                   <FileText className="h-4 w-4" />
                   <span className="hidden sm:inline">Try Sample Data</span>
                   <span className="sm:hidden">Sample</span>
@@ -396,18 +444,31 @@ export default function JsonParserApp() {
                       placeholder="Paste your JSON data here..."
                       value={jsonInput}
                       onChange={(e) => setJsonInput(e.target.value)}
-                      className="min-h-[200px] font-mono text-sm pr-20"
+                      className="font-mono text-sm pr-20 border-2 border-muted/50 focus:border-primary/50 focus:ring-0 focus:outline-none transition-all duration-200 bg-background/50 resize-none scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent hover:border-muted-foreground/30 p-8"
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)',
+                        boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.05)',
+                        height: 'auto',
+                        minHeight: '200px',
+                        maxHeight: '60vh'
+                      }}
+                      onInput={(e) => {
+                        const target = e.target as HTMLTextAreaElement;
+                        target.style.height = 'auto';
+                        target.style.height = Math.max(200, Math.min(target.scrollHeight, window.innerHeight * 0.6)) + 'px';
+                      }}
                     />
-                    <div className="absolute bottom-2 right-2 flex items-center gap-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
-                      <span>{jsonInput.length} chars</span>
-                      <span>•</span>
-                      <span>{jsonInput.split('\n').length} lines</span>
+                    <div className="absolute bottom-3 right-3 flex items-center gap-2 text-xs text-muted-foreground bg-background/90 backdrop-blur-sm px-3 py-1.5 rounded-full border border-muted/30 shadow-sm">
+                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                      <span className="font-medium">{jsonInput.length} chars</span>
+                      <span className="text-muted-foreground/60">•</span>
+                      <span className="font-medium">{jsonInput.split('\n').length} lines</span>
                     </div>
                     {jsonInput.length > 2000 && (
                       <Button
                         size="sm"
-                        variant="primary"
-                        className="absolute top-2 right-2 z-20 animate-bounce bg-primary text-primary-foreground shadow-lg flex items-center gap-2"
+                        variant="default"
+                        className="absolute top-3 right-3 z-20 animate-bounce bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2 border-0"
                         style={{ animation: 'bounce 1.2s infinite' }}
                         onClick={() => {
                           const el = document.getElementById('data-analysis-section')
@@ -415,9 +476,9 @@ export default function JsonParserApp() {
                         }}
                         title="Scroll to Data Analysis"
                       >
-                        <span className="hidden sm:inline">Scroll to Data</span>
-                        <span className="sm:hidden">↓</span>
-                        <svg className="h-5 w-5 animate-pulse ml-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                        <span className="hidden sm:inline font-medium">Scroll to Data</span>
+                        <span className="sm:hidden font-medium">↓</span>
+                        <svg className="h-4 w-4 animate-pulse" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
                       </Button>
                     )}
                   </div>
@@ -432,24 +493,24 @@ export default function JsonParserApp() {
                 </TabsContent>
               </Tabs>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-3">
                 <Tooltip content="Parse and analyze JSON (Ctrl+Enter)">
                   <Button 
                     onClick={validateAndParseJson} 
                     disabled={isLoading}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-200 border-0"
                   >
                     {isLoading ? (
                       <>
-                        <Spinner className="h-4 w-4 text-primary" />
-                        <span className="hidden sm:inline">Parsing...</span>
-                        <span className="sm:hidden">Parsing</span>
+                        <Spinner className="h-4 w-4 text-primary-foreground" />
+                        <span className="hidden sm:inline font-medium">Parsing...</span>
+                        <span className="sm:hidden font-medium">Parsing</span>
                       </>
                     ) : (
                       <>
                         <CheckCircle className="h-4 w-4" />
-                        <span className="hidden sm:inline">Parse & Analyze</span>
-                        <span className="sm:hidden">Parse</span>
+                        <span className="hidden sm:inline font-medium">Parse & Analyze</span>
+                        <span className="sm:hidden font-medium">Parse</span>
                       </>
                     )}
                   </Button>
@@ -460,6 +521,7 @@ export default function JsonParserApp() {
                     onClick={formatJson} 
                     disabled={!parsedJson}
                     title="Format JSON with proper indentation"
+                    className="hover:bg-muted/50 transition-all duration-200 border-muted/50 hover:border-muted-foreground/30"
                   >
                     <Copy className="h-4 w-4" />
                     <span className="hidden sm:inline">Format</span>
@@ -471,6 +533,7 @@ export default function JsonParserApp() {
                     onClick={minifyJson} 
                     disabled={!parsedJson}
                     title="Minify JSON (remove whitespace)"
+                    className="hover:bg-muted/50 transition-all duration-200 border-muted/50 hover:border-muted-foreground/30"
                   >
                     <Code className="h-4 w-4" />
                     <span className="hidden sm:inline">Minify</span>
@@ -482,6 +545,7 @@ export default function JsonParserApp() {
                     onClick={undo} 
                     disabled={historyIndex <= 0}
                     title="Undo (Ctrl+Z)"
+                    className="hover:bg-muted/50 transition-all duration-200 border-muted/50 hover:border-muted-foreground/30"
                   >
                     <RotateCcw className="h-4 w-4" />
                   </Button>
@@ -492,12 +556,18 @@ export default function JsonParserApp() {
                     onClick={redo} 
                     disabled={historyIndex >= history.length - 1}
                     title="Redo (Ctrl+Y)"
+                    className="hover:bg-muted/50 transition-all duration-200 border-muted/50 hover:border-muted-foreground/30"
                   >
                     <RotateCw className="h-4 w-4" />
                   </Button>
                 </Tooltip>
                 <Tooltip content="Clear all data">
-                  <Button variant="outline" onClick={clearAll} title="Clear all data">
+                  <Button 
+                    variant="outline" 
+                    onClick={clearAll} 
+                    title="Clear all data"
+                    className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all duration-200 border-muted/50"
+                  >
                     <span className="hidden sm:inline">Clear All</span>
                     <span className="sm:hidden">Clear</span>
                   </Button>
@@ -521,7 +591,20 @@ export default function JsonParserApp() {
                     )}
                     {parsedJson && (
                       <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                        {Array.isArray(parsedJson) ? `${parsedJson.length} items` : 'Object'}
+                        {Array.isArray(parsedJson) 
+                          ? `${parsedJson.length} items` 
+                          : typeof parsedJson === 'object' && parsedJson !== null
+                            ? 'Object'
+                            : typeof parsedJson === 'string'
+                              ? 'String'
+                              : typeof parsedJson === 'number'
+                                ? 'Number'
+                                : typeof parsedJson === 'boolean'
+                                  ? 'Boolean'
+                                  : parsedJson === null
+                                    ? 'Null'
+                                    : 'Unknown'
+                        }
                       </Badge>
                     )}
                   </div>
@@ -621,6 +704,32 @@ export default function JsonParserApp() {
           )}
         </div>
       </div>
+      
+      {/* Footer */}
+      <footer className="bg-muted/30 border-t border-muted/50 mt-16">
+        <div className="container mx-auto px-4 py-6 max-w-7xl">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <span>© 2025 JSON Data Viewer</span>
+              <span>•</span>
+              <span>Built with Next.js & Tailwind CSS</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <a 
+                href="https://hub.docker.com/r/paulpuvi/json-parser" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium"
+              >
+                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M13.983 11.078h2.119a.186.186 0 00.186-.185V8.463a.185.185 0 00-.186-.186h-2.119a.185.185 0 00-.185.186v2.43c0 .102.083.185.185.185zM8.463 11.078h2.119a.186.186 0 00.186-.185V8.463a.185.185 0 00-.186-.186H8.463a.185.185 0 00-.185.186v2.43c0 .102.083.185.185.185zM8.463 15.537h2.119a.186.186 0 00.186-.185v-2.43a.185.185 0 00-.186-.185H8.463a.185.185 0 00-.185.185v2.43c0 .102.083.185.185.185zM13.983 15.537h2.119a.186.186 0 00.186-.185v-2.43a.185.185 0 00-.186-.185h-2.119a.185.185 0 00-.185.185v2.43c0 .102.083.185.185.185z"/>
+                </svg>
+                Run with Docker
+              </a>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }
