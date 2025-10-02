@@ -1,24 +1,24 @@
-# JSON Parser
+# JSON Explorer
 
-A JSON data analyzer and viewer. Parse, filter, and analyze JSON data in your browser. No server storage, no tracking.
+A JSON data analyzer and viewer. Parse, explore, filter, and analyze JSON data in your browser. No server storage, no tracking.
 
 ## Quick Start
 
 ### Try Online
-**Live Demo**: [https://json-parser.vercel.app/](https://json-parser.vercel.app/) - Try it now without installation!
+**Live Demo**: [https://json-explorer.vercel.app/](https://json-explorer.vercel.app/) - Try it now without installation!
 
 ### Run with Docker
 
 ```bash
-docker run -p 8080:8080 paulpuvi/json-parser:latest
+docker run -p 8080:8080 paulpuvi/json-explorer:latest
 ```
 
 ### Docker Compose
 
 ```yaml
 services:
-  json-parser:
-    image: paulpuvi/json-parser:latest
+  json-explorer:
+    image: paulpuvi/json-explorer:latest
     ports:
       - "8080:8080"
 ```
@@ -44,10 +44,10 @@ npx serve out
 
 ## More Info
 
-- **Source Code**: [GitHub Repository](https://github.com/paulpuvi06/json-parser)
-- **Issues**: [Report bugs or request features](https://github.com/paulpuvi06/json-parser/issues)
-- **Documentation**: [Full documentation](https://github.com/paulpuvi06/json-parser#readme)
+- **Source Code**: [GitHub Repository](https://github.com/paulpuvi06/json-explorer)
+- **Issues**: [Report bugs or request features](https://github.com/paulpuvi06/json-explorer/issues)
+- **Documentation**: [Full documentation](https://github.com/paulpuvi06/json-explorer#readme)
 
 ## License
 
-MIT License - see [LICENSE](https://github.com/paulpuvi06/json-parser/blob/main/LICENSE) for details
+MIT License - see [LICENSE](https://github.com/paulpuvi06/json-explorer/blob/main/LICENSE) for details

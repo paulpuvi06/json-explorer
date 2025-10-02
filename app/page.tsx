@@ -16,7 +16,7 @@ import { ThemeToggle } from "@/components/theme-toggle"
 import { Spinner } from "@/components/ui/spinner"
 import { Tooltip } from "@/components/ui/tooltip"
 
-export default function JsonParserApp() {
+export default function JsonExplorerApp() {
   const [jsonInput, setJsonInput] = useState("")
   const [parsedJson, setParsedJson] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
@@ -144,7 +144,7 @@ export default function JsonParserApp() {
   }, [])
 
   const validateAndParseJson = () => {
-    console.log("[json-parser] Parsing JSON, input length:", jsonInput.length)
+    console.log("[json-explorer] Parsing JSON, input length:", jsonInput.length)
     setIsLoading(true)
 
     if (!jsonInput.trim()) {
@@ -157,7 +157,7 @@ export default function JsonParserApp() {
 
     try {
       const parsed = JSON.parse(jsonInput)
-      console.log("[json-parser] JSON parsed successfully, keys:", Object.keys(parsed))
+      console.log("[json-explorer] JSON parsed successfully, keys:", Object.keys(parsed))
       setParsedJson(parsed)
       setError(null)
       setIsValid(true)
@@ -166,7 +166,7 @@ export default function JsonParserApp() {
       // Add to history
       addToHistory(jsonInput)
     } catch (err) {
-      console.log("[json-parser] JSON parse error:", err)
+      console.log("[json-explorer] JSON parse error:", err)
       setError(err instanceof Error ? err.message : "Invalid JSON format")
       setIsValid(false)
       setParsedJson(null)
@@ -324,7 +324,7 @@ export default function JsonParserApp() {
   }
 
   const handleFileContent = (content: string) => {
-    console.log("[json-parser] File content received, length:", content.length)
+    console.log("[json-explorer] File content received, length:", content.length)
     setJsonInput(content)
     setDataKey((prev) => prev + 1)
   }
@@ -348,9 +348,10 @@ export default function JsonParserApp() {
       <div className="container mx-auto px-4 py-8 max-w-7xl flex-1">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-2 text-balance">JSON Data Viewer</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-2 text-balance">JSON Explorer</h1>
           <p className="text-muted-foreground text-base sm:text-lg text-pretty mb-6">
-            Parse, filter, and analyze JSON data with advanced table views. Transform complex data into actionable insights.
+            Parse, explore, filter, and analyze JSON data with advanced table views.<br />
+            Transform complex data into actionable insights and export results.
           </p>
           
           {/* Feature highlights */}
@@ -710,13 +711,13 @@ export default function JsonParserApp() {
         <div className="container mx-auto px-4 py-6 max-w-7xl">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
-              <span>© 2025 JSON Data Viewer</span>
+              <span>© 2025 JSON Explorer</span>
               <span>•</span>
               <span>Built with Next.js & Tailwind CSS</span>
             </div>
             <div className="flex items-center gap-4">
               <a 
-                href="https://hub.docker.com/r/paulpuvi/json-parser" 
+                href="https://hub.docker.com/r/paulpuvi/json-explorer" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium"

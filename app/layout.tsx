@@ -8,9 +8,9 @@ import { Spinner } from "@/components/ui/spinner"
 import "./globals.css"
 
 export const metadata: Metadata = {
-  title: "JSON Data Viewer",
-  description: "Parse, analyze, and export JSON configuration data with advanced table views",
-  generator: "json-parser",
+  title: "JSON Explorer",
+  description: "Parse, explore, analyze, and export JSON configuration data with advanced table views",
+  generator: "json-explorer",
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
