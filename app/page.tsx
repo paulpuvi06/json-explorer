@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -26,6 +26,7 @@ export default function JsonExplorerApp() {
   const [history, setHistory] = useState<string[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
   const [viewMode, setViewMode] = useState<"table" | "tree">("table")
+  const urlFetchClearAllRef = useRef<(() => void) | null>(null)
 
   // Check if JSON is flat (suitable for table view)
   const isFlatJson = useMemo(() => {
@@ -220,10 +221,14 @@ export default function JsonExplorerApp() {
     setDataKey(0)
     setHistory([])
     setHistoryIndex(-1)
+    // Also clear URL fetch data
+    if (urlFetchClearAllRef.current) {
+      urlFetchClearAllRef.current()
+    }
   }
 
-  const loadSampleJson = () => {
-    const sampleData = [
+  const sampleDataSets = {
+    "AI Models": [
       {
         "provider": "OpenAI",
         "model": "GPT-4",
@@ -231,7 +236,11 @@ export default function JsonExplorerApp() {
         "context": 128000,
         "capabilities": ["text", "code", "reasoning"],
         "api": true,
-        "website": "https://openai.com"
+        "website": "https://openai.com",
+        "release_date": "2023-03-14",
+        "parameters": "1.76T",
+        "training_data": "September 2021",
+        "max_tokens": 4096
       },
       {
         "provider": "OpenAI",
@@ -240,7 +249,24 @@ export default function JsonExplorerApp() {
         "context": 128000,
         "capabilities": ["text", "code", "reasoning", "vision"],
         "api": true,
-        "website": "https://openai.com"
+        "website": "https://openai.com",
+        "release_date": "2023-11-06",
+        "parameters": "1.76T",
+        "training_data": "April 2023",
+        "max_tokens": 4096
+      },
+      {
+        "provider": "OpenAI",
+        "model": "GPT-3.5 Turbo",
+        "cost": 0.002,
+        "context": 16384,
+        "capabilities": ["text", "code"],
+        "api": true,
+        "website": "https://openai.com",
+        "release_date": "2022-11-30",
+        "parameters": "175B",
+        "training_data": "September 2021",
+        "max_tokens": 4096
       },
       {
         "provider": "Anthropic",
@@ -249,7 +275,11 @@ export default function JsonExplorerApp() {
         "context": 200000,
         "capabilities": ["text", "code", "reasoning"],
         "api": true,
-        "website": "https://anthropic.com"
+        "website": "https://anthropic.com",
+        "release_date": "2024-03-04",
+        "parameters": "Unknown",
+        "training_data": "August 2023",
+        "max_tokens": 4096
       },
       {
         "provider": "Anthropic",
@@ -258,7 +288,24 @@ export default function JsonExplorerApp() {
         "context": 200000,
         "capabilities": ["text", "code", "reasoning"],
         "api": true,
-        "website": "https://anthropic.com"
+        "website": "https://anthropic.com",
+        "release_date": "2024-03-04",
+        "parameters": "Unknown",
+        "training_data": "August 2023",
+        "max_tokens": 4096
+      },
+      {
+        "provider": "Anthropic",
+        "model": "Claude 3 Haiku",
+        "cost": 0.00025,
+        "context": 200000,
+        "capabilities": ["text", "code"],
+        "api": true,
+        "website": "https://anthropic.com",
+        "release_date": "2024-03-04",
+        "parameters": "Unknown",
+        "training_data": "August 2023",
+        "max_tokens": 4096
       },
       {
         "provider": "Google",
@@ -267,7 +314,24 @@ export default function JsonExplorerApp() {
         "context": 32000,
         "capabilities": ["text", "code", "multimodal"],
         "api": true,
-        "website": "https://ai.google.dev"
+        "website": "https://ai.google.dev",
+        "release_date": "2023-12-06",
+        "parameters": "Unknown",
+        "training_data": "2023",
+        "max_tokens": 2048
+      },
+      {
+        "provider": "Google",
+        "model": "Gemini Ultra",
+        "cost": 0.01,
+        "context": 32000,
+        "capabilities": ["text", "code", "multimodal", "reasoning"],
+        "api": true,
+        "website": "https://ai.google.dev",
+        "release_date": "2024-02-15",
+        "parameters": "Unknown",
+        "training_data": "2023",
+        "max_tokens": 2048
       },
       {
         "provider": "Meta",
@@ -277,50 +341,110 @@ export default function JsonExplorerApp() {
         "capabilities": ["text", "code"],
         "api": false,
         "website": "https://ai.meta.com",
-        "local": true
+        "local": true,
+        "release_date": "2023-07-18",
+        "parameters": "70B",
+        "training_data": "September 2022",
+        "max_tokens": 4096
       },
       {
-        "provider": "Ollama",
-        "model": "Llama 3.1",
+        "provider": "Meta",
+        "model": "Llama 3",
         "cost": 0,
         "context": 128000,
         "capabilities": ["text", "code", "reasoning"],
         "api": false,
-        "website": "https://ollama.ai",
-        "local": true
+        "website": "https://ai.meta.com",
+        "local": true,
+        "release_date": "2024-04-18",
+        "parameters": "405B",
+        "training_data": "March 2024",
+        "max_tokens": 8192
       },
       {
-        "provider": "Ollama",
+        "provider": "Mistral",
         "model": "Mistral 7B",
         "cost": 0,
         "context": 32000,
         "capabilities": ["text", "code"],
         "api": false,
-        "website": "https://ollama.ai",
-        "local": true
+        "website": "https://mistral.ai",
+        "local": true,
+        "release_date": "2023-09-27",
+        "parameters": "7B",
+        "training_data": "2023",
+        "max_tokens": 32000
       },
       {
-        "provider": "LM Studio",
-        "model": "Phi-3",
+        "provider": "Mistral",
+        "model": "Mixtral 8x7B",
         "cost": 0,
-        "context": 128000,
+        "context": 32000,
         "capabilities": ["text", "code", "reasoning"],
         "api": false,
-        "website": "https://lmstudio.ai",
-        "local": true
+        "website": "https://mistral.ai",
+        "local": true,
+        "release_date": "2024-01-31",
+        "parameters": "45B",
+        "training_data": "2023",
+        "max_tokens": 32000
       },
       {
-        "provider": "GPT4All",
-        "model": "Mistral 7B",
-        "cost": 0,
-        "context": 8192,
+        "provider": "Cohere",
+        "model": "Command",
+        "cost": 0.0015,
+        "context": 4096,
         "capabilities": ["text", "code"],
-        "api": false,
-        "website": "https://gpt4all.io",
-        "local": true
+        "api": true,
+        "website": "https://cohere.com",
+        "release_date": "2023-05-15",
+        "parameters": "Unknown",
+        "training_data": "2023",
+        "max_tokens": 2048
+      },
+      {
+        "provider": "Cohere",
+        "model": "Command Light",
+        "cost": 0.0003,
+        "context": 4096,
+        "capabilities": ["text"],
+        "api": true,
+        "website": "https://cohere.com",
+        "release_date": "2023-05-15",
+        "parameters": "Unknown",
+        "training_data": "2023",
+        "max_tokens": 2048
+      },
+      {
+        "provider": "xAI",
+        "model": "Grok-1",
+        "cost": 0.01,
+        "context": 8192,
+        "capabilities": ["text", "code", "reasoning"],
+        "api": true,
+        "website": "https://x.ai",
+        "release_date": "2024-03-17",
+        "parameters": "314B",
+        "training_data": "October 2023",
+        "max_tokens": 4096
       }
     ]
-    setJsonInput(JSON.stringify(sampleData, null, 2))
+  }
+
+  const loadSampleJson = () => {
+    setJsonInput(JSON.stringify(sampleDataSets["AI Models"], null, 2))
+    setDataKey((prev) => prev + 1)
+    setHistory([])
+    setHistoryIndex(-1)
+    
+    // Scroll to data section after a short delay to allow for rendering
+    setTimeout(() => {
+      const dataSection = document.getElementById('data-analysis-section')
+      dataSection?.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      })
+    }, 100)
   }
 
   const handleFileContent = (content: string) => {
@@ -397,9 +521,9 @@ export default function JsonExplorerApp() {
                     <div className="p-2 bg-primary/10 rounded-lg">
                       <Code className="h-5 w-5 text-primary" />
                     </div>
-                    JSON Input
+                    JSON Data Source
                   </CardTitle>
-                  <CardDescription className="text-base mt-1">Paste your JSON data or upload a file</CardDescription>
+                  <CardDescription className="text-base mt-1">Paste your JSON data, upload a file, or fetch from URL</CardDescription>
                 </div>
                 <Button 
                   onClick={loadSampleJson} 
@@ -408,7 +532,7 @@ export default function JsonExplorerApp() {
                   className="flex items-center gap-2 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all duration-200 border-muted/50"
                 >
                   <FileText className="h-4 w-4" />
-                  <span className="hidden sm:inline">Try Sample Data</span>
+                  <span className="hidden sm:inline">Load Sample Data</span>
                   <span className="sm:hidden">Sample</span>
                 </Button>
               </div>
@@ -490,7 +614,7 @@ export default function JsonExplorerApp() {
                 </TabsContent>
 
                 <TabsContent value="url">
-                  <UrlFetch onUrlContent={handleFileContent} />
+                  <UrlFetch onUrlContent={handleFileContent} clearAllRef={urlFetchClearAllRef} />
                 </TabsContent>
               </Tabs>
 
@@ -706,26 +830,51 @@ export default function JsonExplorerApp() {
         </div>
       </div>
       
-      {/* Footer */}
-      <footer className="bg-muted/30 border-t border-muted/50 mt-16">
+      {/* Simple Footer */}
+      <footer className="bg-muted/30 border-t border-border/50 mt-16">
         <div className="container mx-auto px-4 py-6 max-w-7xl">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <span>© 2025 JSON Explorer</span>
               <span>•</span>
               <span>Built with Next.js & Tailwind CSS</span>
+              <span>•</span>
+              <span className="flex items-center gap-1">
+                <span>Made with</span>
+                <span className="text-red-500">❤️</span>
+                <span>by Paul</span>
+              </span>
             </div>
             <div className="flex items-center gap-4">
+              <button
+                onClick={() => {
+                  if (navigator.share) {
+                    navigator.share({
+                      title: 'JSON Explorer',
+                      text: 'Explore and analyze JSON data with advanced filtering and export capabilities',
+                      url: window.location.href
+                    })
+                  } else {
+                    navigator.clipboard.writeText(window.location.href)
+                  }
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+                </svg>
+                Share
+              </button>
               <a 
                 href="https://hub.docker.com/r/paulpuvi/json-explorer" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium"
+                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
               >
                 <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M13.983 11.078h2.119a.186.186 0 00.186-.185V8.463a.185.185 0 00-.186-.186h-2.119a.185.185 0 00-.185.186v2.43c0 .102.083.185.185.185zM8.463 11.078h2.119a.186.186 0 00.186-.185V8.463a.185.185 0 00-.186-.186H8.463a.185.185 0 00-.185.186v2.43c0 .102.083.185.185.185zM8.463 15.537h2.119a.186.186 0 00.186-.185v-2.43a.185.185 0 00-.186-.185H8.463a.185.185 0 00-.185.185v2.43c0 .102.083.185.185.185zM13.983 15.537h2.119a.186.186 0 00.186-.185v-2.43a.185.185 0 00-.186-.185h-2.119a.185.185 0 00-.185.185v2.43c0 .102.083.185.185.185z"/>
                 </svg>
-                Run with Docker
+                Docker
               </a>
             </div>
           </div>

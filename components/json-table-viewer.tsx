@@ -1,6 +1,6 @@
 "use client"
 
-import type React from "react"
+import React from "react"
 
 import { useState, useMemo, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -14,7 +14,6 @@ import {
   ChevronRight,
   Copy,
   Check,
-  FileText,
   FileSpreadsheet,
   Filter,
   X,
@@ -25,6 +24,9 @@ import {
   ArrowUp,
   ArrowDown,
   Expand,
+  FileText,
+  FileCode,
+  Eye,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -36,8 +38,8 @@ interface JsonTableViewerProps {
 interface FilterState {
   column: string
   value: string
-  type: "dropdown" | "search"
-  searchOperator?: "contains" | "not_contains"
+  type: "dropdown" | "search" | "regex"
+  searchOperator?: "contains" | "not_contains" | "matches" | "not_matches"
 }
 
 interface FilterLogic {
@@ -61,6 +63,15 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null)
   const [sortState, setSortState] = useState<SortState | null>(null)
   const [expandedColumns, setExpandedColumns] = useState<Set<string>>(new Set())
+  
+  // Simple toggle states for UI features
+  const [enableGrouping, setEnableGrouping] = useState<boolean>(false)
+  const [enableAdvancedFilters, setEnableAdvancedFilters] = useState<boolean>(false)
+  const [showGroupingPanel, setShowGroupingPanel] = useState<boolean>(true)
+  const [showFilteringPanel, setShowFilteringPanel] = useState<boolean>(true)
+  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set())
+  const [showColumnPanel, setShowColumnPanel] = useState<boolean>(false)
+  const [collapsedPanels, setCollapsedPanels] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     setGroupBy("none")
@@ -73,6 +84,13 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
     setColumnOrder([])
     setSortState(null)
     setExpandedColumns(new Set())
+          // Reset toggle states to defaults
+          setEnableGrouping(false)
+          setEnableAdvancedFilters(false)
+    setShowGroupingPanel(true)
+    setShowFilteringPanel(true)
+    setVisibleColumns(new Set())
+    setShowColumnPanel(false)
   }, [data])
 
   const tableData = useMemo(() => {
@@ -122,6 +140,34 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
     return [...validColumns, ...missingColumns]
   }, [baseColumns, columnOrder])
 
+  // Reset data when toggles are disabled
+  useEffect(() => {
+    if (!enableAdvancedFilters) {
+      setFilters([])
+      setFilterLogic({ operator: "AND" })
+    }
+  }, [enableAdvancedFilters])
+
+  useEffect(() => {
+    if (!enableGrouping) {
+      setGroupBy("none")
+      setExpandedGroups({})
+    }
+  }, [enableGrouping])
+
+  useEffect(() => {
+    if (!showColumnPanel) {
+      setVisibleColumns(new Set(columns))
+    }
+  }, [showColumnPanel, columns])
+
+  // Initialize visible columns when data changes
+  useEffect(() => {
+    if (data && columns.length > 0) {
+      setVisibleColumns(new Set(columns))
+    }
+  }, [data, columns])
+
   const columnValues = useMemo(() => {
     const values: Record<string, Set<string>> = {}
 
@@ -168,6 +214,20 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
           
           if (operator === "not_contains") {
             return !cellString.includes(filterValue)
+          } else if (operator === "matches") {
+            try {
+              const regex = new RegExp(filterValue, 'i')
+              return regex.test(cellString)
+            } catch {
+              return false
+            }
+          } else if (operator === "not_matches") {
+            try {
+              const regex = new RegExp(filterValue, 'i')
+              return !regex.test(cellString)
+            } catch {
+              return true
+            }
           } else {
             // Default to "contains"
             return cellString.includes(filterValue)
@@ -221,7 +281,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
   }, [filteredTableData, sortState])
 
   const groupedData = useMemo(() => {
-    if (groupBy === "none" || !groupBy) {
+    if (!enableGrouping || groupBy === "none" || !groupBy) {
       return { "All Items": sortedTableData }
     }
 
@@ -237,7 +297,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
     })
 
     return groups
-  }, [sortedTableData, groupBy])
+  }, [sortedTableData, groupBy, enableGrouping])
 
   const toggleGroup = (groupKey: string) => {
     setExpandedGroups((prev) => ({
@@ -260,7 +320,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
   const exportToCSV = () => {
     if (sortedTableData.length === 0) return
 
-    const exportColumns = columns.filter((col) => !excludedFields.has(col))
+    const exportColumns = columns.filter((col) => !excludedFields.has(col) && (!showColumnPanel || visibleColumns.has(col)))
     const headers = exportColumns.join(",")
     const rows = sortedTableData.map((row) =>
       exportColumns
@@ -288,7 +348,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
   const exportToTSV = () => {
     if (sortedTableData.length === 0) return
 
-    const exportColumns = columns.filter((col) => !excludedFields.has(col))
+    const exportColumns = columns.filter((col) => !excludedFields.has(col) && (!showColumnPanel || visibleColumns.has(col)))
     const headers = exportColumns.join("\t")
     const rows = sortedTableData.map((row) =>
       exportColumns
@@ -311,7 +371,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
   }
 
   const exportToJSON = () => {
-    const exportColumns = columns.filter((col) => !excludedFields.has(col))
+    const exportColumns = columns.filter((col) => !excludedFields.has(col) && (!showColumnPanel || visibleColumns.has(col)))
     const exportData = sortedTableData.map((row) => {
       const filteredRow: any = {}
       exportColumns.forEach((col) => {
@@ -376,6 +436,30 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
         newSet.delete(column)
       } else {
         newSet.add(column)
+      }
+      return newSet
+    })
+  }
+
+  const toggleColumnVisibility = (column: string) => {
+    setVisibleColumns(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(column)) {
+        newSet.delete(column)
+      } else {
+        newSet.add(column)
+      }
+      return newSet
+    })
+  }
+
+  const togglePanelCollapse = (panelName: string) => {
+    setCollapsedPanels(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(panelName)) {
+        newSet.delete(panelName)
+      } else {
+        newSet.add(panelName)
       }
       return newSet
     })
@@ -576,7 +660,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
 
   // Stats only view for header
   if (showStatsOnly) {
-    const hasFilters = filters.length > 0
+    const hasFilters = enableAdvancedFilters && filters.length > 0
     const isFiltered = sortedTableData.length !== tableData.length
     return (
       <div className="flex flex-wrap items-center gap-2">
@@ -606,470 +690,601 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
   }
 
   return (
-    <div className="space-y-4">
-      <Card className="border border-muted/50 shadow-sm">
-        <CardHeader className="pb-3">
-          <div className="flex flex-col space-y-4">
-            {/* Top row - Group by, expand/collapse controls, and export */}
-            <div className="bg-gradient-to-r from-muted/20 to-muted/10 rounded-lg p-4 border border-muted/30">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <label className="text-sm font-medium text-foreground whitespace-nowrap">Group by:</label>
-                    <Select value={groupBy} onValueChange={setGroupBy}>
-                      <SelectTrigger className="w-full sm:w-48 h-9 bg-background border border-muted hover:border-muted-foreground/50 transition-colors shadow-sm">
-                        <SelectValue placeholder="Select field to group by" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No grouping</SelectItem>
-                        {columns.map((col) => (
-                          <SelectItem key={col} value={col}>
-                            {col}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {groupBy !== "none" && (
-                      <Badge 
-                        variant="secondary" 
-                        className="text-xs font-medium h-7 px-2 bg-blue-50 text-blue-700 border-blue-200 shadow-sm"
-                      >
-                        {Object.keys(groupedData).length} group{Object.keys(groupedData).length === 1 ? "" : "s"}
-                      </Badge>
-                    )}
-                  </div>
-
-                  {groupBy !== "none" && Object.keys(groupedData).length > 1 && (
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={expandAll}
-                        className="h-8 w-8 p-0 bg-background hover:bg-muted shadow-sm"
-                        title="Expand All"
-                      >
-                        <ChevronDown className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={collapseAll}
-                        className="h-8 w-8 p-0 bg-background hover:bg-muted shadow-sm"
-                        title="Collapse All"
-                      >
-                        <ChevronRight className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Export options and dropdown */}
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowExportOptions(!showExportOptions)}
-                    className="h-8 bg-background hover:bg-muted border shadow-sm"
-                  >
-                    {showExportOptions ? "Hide" : "Show"} Export Options
-                  </Button>
-                  <Select onValueChange={(value) => {
-                    if (value === 'csv') exportToCSV()
-                    if (value === 'tsv') exportToTSV()
-                    if (value === 'json') exportToJSON()
-                  }}>
-                    <SelectTrigger className="w-full sm:w-36 h-8 bg-background border border-muted hover:border-muted-foreground/50 transition-colors shadow-sm">
-                      <div className="flex items-center gap-1">
-                        <FileSpreadsheet className="h-3 w-3" />
-                        <span className="text-sm">Export</span>
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="csv">
-                        <div className="flex items-center gap-2">
-                          <FileSpreadsheet className="h-3 w-3 text-green-600" />
-                          <span>CSV</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="tsv">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-3 w-3 text-blue-600" />
-                          <span>TSV</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="json">
-                        <div className="flex items-center gap-2">
-                          <FileText className="h-3 w-3 text-purple-600" />
-                          <span>JSON</span>
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
+    <div className="space-y-6">
+      {/* Enhanced Header Bar */}
+      <div className="flex items-center justify-between py-4 border-b border-border">
+        <div className="flex items-center gap-8">
+          {/* Grouping Toggle */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium">Grouping</span>
+            <button
+              onClick={() => setEnableGrouping(!enableGrouping)}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                enableGrouping ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
+              }`}
+            >
+              <span
+                className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform shadow-sm ${
+                  enableGrouping ? 'translate-x-5' : 'translate-x-1'
+                }`}
+              />
+            </button>
           </div>
 
-          {showExportOptions && (
-            <div className="mt-4 p-4 bg-gradient-to-br from-muted/30 to-muted/60 rounded-lg border border-muted">
-              <h4 className="text-sm font-medium mb-3 text-foreground">Export Configuration</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
-                {columns.map((col) => (
-                  <div
-                    key={col}
-                    className="flex items-center space-x-2 p-2 rounded-md bg-background/50 hover:bg-background transition-colors"
+          {/* Filters Toggle */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium">Filters</span>
+            <button
+              onClick={() => setEnableAdvancedFilters(!enableAdvancedFilters)}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                enableAdvancedFilters ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
+              }`}
+            >
+              <span
+                className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform shadow-sm ${
+                  enableAdvancedFilters ? 'translate-x-5' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Column Visibility Toggle */}
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium">Columns</span>
+            <button
+              onClick={() => setShowColumnPanel(!showColumnPanel)}
+              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                showColumnPanel ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
+              }`}
+            >
+              <span
+                className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform shadow-sm ${
+                  showColumnPanel ? 'translate-x-5' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+
+        {/* Enhanced Export */}
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <button
+              onClick={() => setShowExportOptions(!showExportOptions)}
+              className="w-28 h-8 bg-gray-200 text-gray-800 border border-gray-300 rounded-md hover:bg-gray-300 transition-colors flex items-center justify-center gap-1.5"
+            >
+              <FileSpreadsheet className="h-3 w-3 text-gray-600" />
+              <span className="text-xs font-medium">Export</span>
+              <ChevronDown className="h-3 w-3 text-gray-600" />
+            </button>
+            
+            {showExportOptions && (
+              <div className="absolute top-full left-0 mt-1 w-28 bg-white border border-gray-300 rounded-md shadow-lg z-50">
+                <button
+                  onClick={() => {
+                    exportToCSV()
+                    setShowExportOptions(false)
+                  }}
+                  className="w-full px-3 py-2 text-left hover:bg-gray-100 flex items-center gap-2 text-sm"
+                >
+                  <FileSpreadsheet className="h-3 w-3 text-green-600" />
+                  <span>CSV</span>
+                </button>
+                <button
+                  onClick={() => {
+                    exportToTSV()
+                    setShowExportOptions(false)
+                  }}
+                  className="w-full px-3 py-2 text-left hover:bg-gray-100 flex items-center gap-2 text-sm"
+                >
+                  <FileText className="h-3 w-3 text-blue-600" />
+                  <span>TSV</span>
+                </button>
+                <button
+                  onClick={() => {
+                    exportToJSON()
+                    setShowExportOptions(false)
+                  }}
+                  className="w-full px-3 py-2 text-left hover:bg-gray-100 flex items-center gap-2 text-sm"
+                >
+                  <FileCode className="h-3 w-3 text-purple-600" />
+                  <span>JSON</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Grouping Controls */}
+      {enableGrouping && (
+        <div className="bg-muted/30 rounded-lg border border-border">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <div className="flex items-center gap-3">
+              <GripVertical className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Grouping</span>
+              {groupBy !== "none" && (
+                <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-800 border border-blue-300 rounded-full text-xs font-medium">
+                  {Object.keys(groupedData).length} groups
+                </div>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => togglePanelCollapse('grouping')}
+              className="h-6 w-6 p-0"
+            >
+              {collapsedPanels.has('grouping') ? (
+                <ChevronRight className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+          
+          {!collapsedPanels.has('grouping') && (
+            <div className="p-4">
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-muted-foreground">Group by:</span>
+                <Select value={groupBy} onValueChange={setGroupBy}>
+                  <SelectTrigger className="w-40 h-8">
+                    <SelectValue placeholder="Select field" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No grouping</SelectItem>
+                    {columns.map((col) => (
+                      <SelectItem key={col} value={col}>
+                        {col}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {groupBy !== "none" && Object.keys(groupedData).length > 1 && (
+                  <div className="flex gap-1">
+                    <Button variant="ghost" size="sm" onClick={expandAll} className="h-6 px-2 text-xs">
+                      <ChevronDown className="h-3 w-3 mr-1" />
+                      Expand All
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={collapseAll} className="h-6 px-2 text-xs">
+                      <ChevronRight className="h-3 w-3 mr-1" />
+                      Collapse All
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+
+      {/* Filters */}
+      {/* Filters Section */}
+      {enableAdvancedFilters && (
+        <div className="bg-muted/30 rounded-lg border border-border">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <div className="flex items-center gap-3">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Filters</span>
+              {filters.length > 0 && (
+                <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${
+                  sortedTableData.length < tableData.length 
+                    ? 'bg-orange-100 text-orange-800 border-orange-300' 
+                    : 'bg-blue-100 text-blue-800 border-blue-300'
+                }`}>
+                  {sortedTableData.length} of {tableData.length} entries
+                </div>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {filters.length > 0 && (
+                <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${
+                  sortedTableData.length < tableData.length 
+                    ? 'bg-orange-100 text-orange-800 border-orange-300' 
+                    : 'bg-blue-100 text-blue-800 border-blue-300'
+                }`}>
+                  {filters.length}
+                </div>
+              )}
+              {filters.length > 1 && (
+                <div className="flex gap-1">
+                  <Button
+                    variant={filterLogic.operator === "AND" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setFilterLogic({ operator: "AND" })}
+                    className="h-6 px-2 text-xs"
                   >
-                    <Checkbox
-                      id={`exclude-${col}`}
-                      checked={excludedFields.has(col)}
-                      onCheckedChange={() => toggleFieldExclusion(col)}
-                      className="border"
+                    AND
+                  </Button>
+                  <Button
+                    variant={filterLogic.operator === "OR" ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setFilterLogic({ operator: "OR" })}
+                    className="h-6 px-2 text-xs"
+                  >
+                    OR
+                  </Button>
+                </div>
+              )}
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={addFilter} 
+                className="h-7 px-3 text-xs bg-gray-100 text-gray-800 border-gray-300"
+              >
+                <Plus className="h-3 w-3 mr-1.5" />
+                Add Filter
+              </Button>
+              
+              {filters.length > 0 && (
+                <Button variant="ghost" size="sm" onClick={clearAllFilters} className="h-6 px-2 text-xs text-red-600 hover:text-red-700">
+                  Clear All
+                </Button>
+              )}
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => togglePanelCollapse('filters')}
+                className="h-6 w-6 p-0"
+              >
+                {collapsedPanels.has('filters') ? (
+                  <ChevronRight className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {!collapsedPanels.has('filters') && (
+            <div className="p-4">
+              {/* Filter Items */}
+              {filters.length > 0 && (
+                <div className="space-y-3">
+                  {filters.map((filter, index) => (
+                    <div key={index} className="flex items-center gap-3 p-4 bg-muted/20 rounded-lg border border-border/50">
+                      <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center text-xs font-medium">
+                        {index + 1}
+                      </div>
+
+                      <Select value={filter.column} onValueChange={(value) => updateFilter(index, "column", value)}>
+                        <SelectTrigger className="w-40 h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {columns.map((col) => (
+                            <SelectItem key={col} value={col}>
+                              {col}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      <Select
+                        value={filter.type}
+                        onValueChange={(value: "dropdown" | "search" | "regex") => updateFilter(index, "type", value)}
+                      >
+                        <SelectTrigger className="w-32 h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="search">Search</SelectItem>
+                          <SelectItem value="dropdown">Select</SelectItem>
+                          <SelectItem value="regex">Regex</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      {filter.type === "dropdown" ? (
+                        <Select value={filter.value} onValueChange={(value) => updateFilter(index, "value", value)}>
+                          <SelectTrigger className="flex-1 h-9">
+                            <SelectValue placeholder="Select value..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="default">All values</SelectItem>
+                            {columnValues[filter.column]?.slice(0, 50).map((value) => (
+                              <SelectItem key={value} value={value}>
+                                {value}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : filter.type === "regex" ? (
+                        <div className="flex-1 flex gap-2">
+                          <Select
+                            value={filter.searchOperator || "matches"}
+                            onValueChange={(value: "matches" | "not_matches") => updateFilter(index, "searchOperator", value)}
+                          >
+                            <SelectTrigger className="w-32 h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="matches">Matches</SelectItem>
+                              <SelectItem value="not_matches">Not Matches</SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          <input
+                            type="text"
+                            value={filter.value}
+                            onChange={(e) => updateFilter(index, "value", e.target.value)}
+                            placeholder="Enter regex pattern..."
+                            className="flex-1 h-9 px-3 text-sm bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex-1 flex gap-2">
+                          <Select
+                            value={filter.searchOperator || "contains"}
+                            onValueChange={(value: "contains" | "not_contains") => updateFilter(index, "searchOperator", value)}
+                          >
+                            <SelectTrigger className="w-32 h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="contains">Contains</SelectItem>
+                              <SelectItem value="not_contains">Not Contains</SelectItem>
+                            </SelectContent>
+                          </Select>
+
+                          <input
+                            type="text"
+                            value={filter.value}
+                            onChange={(e) => updateFilter(index, "value", e.target.value)}
+                            placeholder="Type to search..."
+                            className="flex-1 h-9 px-3 text-sm bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                          />
+                        </div>
+                      )}
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFilter(index)}
+                        className="h-9 w-9 p-0 text-red-600 hover:text-red-700"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Column Management Panel */}
+      {showColumnPanel && (
+        <div className="bg-muted/30 rounded-lg border border-border">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <div className="flex items-center gap-3">
+              <Eye className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Columns</span>
+              <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-800 border border-blue-300 rounded-full text-xs font-medium">
+                {visibleColumns.size}/{columns.length} visible
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setVisibleColumns(new Set(columns))}
+                className="h-7 px-3 text-xs bg-gray-100 text-gray-800 border-gray-300"
+              >
+                Show All
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setVisibleColumns(new Set())}
+                className="h-7 px-3 text-xs bg-gray-100 text-gray-800 border-gray-300"
+              >
+                Hide All
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => togglePanelCollapse('columns')}
+                className="h-6 w-6 p-0"
+              >
+                {collapsedPanels.has('columns') ? (
+                  <ChevronRight className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+          </div>
+          
+          {!collapsedPanels.has('columns') && (
+            <div className="p-4">
+              <div className="mb-3 p-2 bg-muted/50 border border-border/50 rounded-md">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-muted-foreground rounded-full flex items-center justify-center">
+                    <span className="text-background text-xs font-bold">i</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    <span className="font-medium">Export Note:</span> Only selected columns will be included in exports (CSV, TSV, JSON).
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {columns.map((col) => (
+                  <div key={col} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={`column-${col}`}
+                      checked={!showColumnPanel || visibleColumns.has(col)}
+                      onChange={() => toggleColumnVisibility(col)}
+                      className="h-4 w-4"
                     />
-                    <label htmlFor={`exclude-${col}`} className="text-sm font-medium truncate cursor-pointer">
+                    <label htmlFor={`column-${col}`} className="text-sm cursor-pointer truncate">
                       {col}
                     </label>
                   </div>
                 ))}
               </div>
-              {excludedFields.size > 0 && (
-                <div className="mt-3 flex items-center gap-2">
-                  <Badge variant="secondary" className="text-xs font-medium h-6">
-                    {excludedFields.size} field{excludedFields.size === 1 ? "" : "s"} excluded from export
-                  </Badge>
-                </div>
-              )}
             </div>
           )}
-        </CardHeader>
-      </Card>
-
-      <Card className="border border-muted/50 shadow-sm">
-        <CardHeader className="pb-3">
-          <div className="flex flex-col space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Filter className="h-4 w-4 text-primary" />
-                  Advanced Filters
-                  {filters.length > 0 && (
-                    <Badge variant="secondary" className="text-xs font-medium h-6">
-                      {filters.length} active
-                    </Badge>
-                  )}
-                </CardTitle>
-                {filters.length > 0 && (
-                  <Badge
-                    variant="outline"
-                    className={`text-xs font-medium h-6 px-2 ${
-                      sortedTableData.length !== tableData.length
-                        ? "bg-orange-50 text-orange-700 border-orange-200"
-                        : "bg-green-50 text-green-700 border-green-200"
-                    }`}
-                  >
-                    {sortedTableData.length} of {tableData.length} entries found
-                  </Badge>
-                )}
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                {filters.length > 1 && (
-                  <div className="flex items-center gap-1 p-1 bg-muted rounded-md">
-                    <Button
-                      variant={filterLogic.operator === "AND" ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setFilterLogic({ operator: "AND" })}
-                      className="h-7 px-2 text-xs font-medium"
-                    >
-                      AND
-                    </Button>
-                    <Button
-                      variant={filterLogic.operator === "OR" ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setFilterLogic({ operator: "OR" })}
-                      className="h-7 px-2 text-xs font-medium"
-                    >
-                      OR
-                    </Button>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={addFilter}
-                    className="flex-1 sm:flex-none h-8 bg-primary/10 hover:bg-primary/20 text-primary border-primary/30"
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    <span className="hidden sm:inline">Add Filter</span>
-                    <span className="sm:hidden">Add</span>
-                  </Button>
-                  {filters.length > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={clearAllFilters}
-                      className="flex-1 sm:flex-none h-8 bg-destructive/10 hover:bg-destructive/20 text-destructive border-destructive/30"
-                    >
-                      <span className="hidden sm:inline">Clear All</span>
-                      <span className="sm:hidden">Clear</span>
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {filters.length > 1 && (
-              <div className="text-xs text-muted-foreground bg-muted/30 rounded-md p-2">
-                <strong>Filter Logic:</strong>{" "}
-                {filterLogic.operator === "AND" ? "All conditions must be met" : "Any condition can be met"}
-                {filterLogic.operator === "AND" ? " (more restrictive)" : " (more inclusive)"}
-              </div>
-            )}
-          </div>
-        </CardHeader>
-
-        {filters.length > 0 && (
-          <CardContent className="pt-0">
-            <div className="space-y-3">
-              {filters.map((filter, index) => (
-                <div
-                  key={index}
-                  className="flex flex-col space-y-2 sm:space-y-0 sm:flex-row sm:items-center sm:gap-3 p-3 bg-gradient-to-r from-muted/20 to-muted/40 rounded-lg border border-muted/50 hover:border-muted transition-colors"
-                >
-                  {/* Filter number indicator */}
-                  <div className="flex items-center justify-center w-6 h-6 bg-primary/10 text-primary rounded-full text-xs font-bold">
-                    {index + 1}
-                  </div>
-
-                  <Select value={filter.column} onValueChange={(value) => updateFilter(index, "column", value)}>
-                    <SelectTrigger className="w-full sm:w-48 h-8 bg-background border border-muted hover:border-muted-foreground/50">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {columns.map((col) => (
-                        <SelectItem key={col} value={col}>
-                          {col}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  <Select
-                    value={filter.type}
-                    onValueChange={(value: "dropdown" | "search") => updateFilter(index, "type", value)}
-                  >
-                    <SelectTrigger className="w-full sm:w-32 h-8 bg-background border border-muted hover:border-muted-foreground/50">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="search">Search</SelectItem>
-                      <SelectItem value="dropdown">Select</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  {filter.type === "dropdown" ? (
-                    <Select value={filter.value} onValueChange={(value) => updateFilter(index, "value", value)}>
-                      <SelectTrigger className="flex-1 h-8 bg-background border border-muted hover:border-muted-foreground/50">
-                        <SelectValue placeholder="Select value..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="default">All values</SelectItem>
-                        {columnValues[filter.column]?.slice(0, 50).map((value) => (
-                          <SelectItem key={value} value={value}>
-                            {value}
-                          </SelectItem>
-                        ))}
-                        {columnValues[filter.column]?.length > 50 && (
-                          <SelectItem value="more" disabled>
-                            ... and {columnValues[filter.column].length - 50} more
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <div className="flex-1 flex gap-2">
-                      <Select
-                        value={filter.searchOperator || "contains"}
-                        onValueChange={(value: "contains" | "not_contains") => updateFilter(index, "searchOperator", value)}
-                      >
-                        <SelectTrigger className="w-32 h-8 bg-background border border-muted hover:border-muted-foreground/50">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="contains">Contains</SelectItem>
-                          <SelectItem value="not_contains">Not Contains</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      
-                      <input
-                        type="text"
-                        value={filter.value}
-                        onChange={(e) => updateFilter(index, "value", e.target.value)}
-                        placeholder="Type to search..."
-                        className="flex-1 h-8 px-3 py-1 text-sm bg-background border border-muted rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary hover:border-muted-foreground/50 transition-colors"
-                      />
-                    </div>
-                  )}
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => removeFilter(index)}
-                    className="w-full sm:w-auto h-8 bg-destructive/10 hover:bg-destructive/20 text-destructive border-destructive/30"
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        )}
-      </Card>
-
-      {sortedTableData.length === 0 && tableData.length > 0 && (
-        <Card className="border-2 border-dashed border-muted">
-          <CardContent className="text-center py-12">
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center">
-                <Filter className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-lg font-medium text-foreground">No results match your filters</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Try adjusting your filter criteria or switching to {filterLogic.operator === "AND" ? "OR" : "AND"}{" "}
-                  logic
-                </p>
-              </div>
-              <Button variant="outline" onClick={clearAllFilters} className="mt-2 bg-transparent">
-                Clear All Filters
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        </div>
       )}
 
-      <div className="space-y-4">
+      {/* No Results State */}
+      {enableAdvancedFilters && sortedTableData.length === 0 && tableData.length > 0 && (
+        <div className="text-center py-12 bg-muted/10 rounded-lg border border-muted/30">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 bg-muted/30 rounded-full flex items-center justify-center">
+              <Filter className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-base font-medium text-foreground">No results match your filters</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Try adjusting your filter criteria or switching to {filterLogic.operator === "AND" ? "OR" : "AND"} logic
+              </p>
+            </div>
+            <Button 
+              variant="ghost" 
+              onClick={clearAllFilters} 
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              Clear All Filters
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Data Table */}
+      <div className="space-y-3">
         {Object.entries(groupedData).map(([groupKey, groupRows]) => {
           const isExpanded = expandedGroups[groupKey] !== false
-          const showGroupHeader = groupBy !== "none"
+          const showGroupHeader = enableGrouping && groupBy !== "none" && Object.keys(groupedData).length > 1
 
           return (
-            <Card key={groupKey} className="border border-muted/50 shadow-sm hover:shadow-md transition-shadow">
+            <div key={groupKey} className="border border-border rounded-lg overflow-hidden">
+              {/* Group Header */}
               {showGroupHeader && (
-                <div className="bg-gradient-to-r from-muted/20 to-muted/40 border-b border-muted/50 px-4 py-2">
-                  <div className="flex items-center gap-2 text-sm">
+                <div className="bg-muted/50 px-4 py-3 border-b border-border">
+                  <div className="flex items-center gap-3">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-5 w-5 p-0 hover:bg-background/50"
+                      className="h-6 w-6 p-0"
                       onClick={() => toggleGroup(groupKey)}
                     >
-                      {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                      {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                     </Button>
                     <span className="font-medium">{groupKey}</span>
-                    <Badge variant="secondary" className="text-xs font-medium bg-primary/10 text-primary h-4 px-1.5">
-                      {groupRows.length} {groupRows.length === 1 ? "item" : "items"}
+                    <Badge variant="secondary" className="text-xs">
+                      {groupRows.length} items
                     </Badge>
                   </div>
                 </div>
               )}
 
-              {isExpanded ? (
-                <CardContent className={cn("p-0", showGroupHeader ? "" : "pt-4")}>
-                  <div className="rounded-lg overflow-auto max-h-[500px] custom-scrollbar">
-                    <div className="min-w-full">
-                      <Table>
-                        <TableHeader className="sticky top-0 bg-background/95 backdrop-blur-sm border-b border-muted">
-                          <TableRow>
-                            {columns.map((col) => (
-                              <TableHead
-                                key={col}
-                                className={cn(
-                                  "font-medium draggable-header cursor-pointer select-none bg-muted/30 hover:bg-muted/50 transition-colors py-2",
-                                  draggedColumn === col && "dragging opacity-50",
-                                  expandedColumns.has(col) ? "min-w-80 max-w-none" : "min-w-32 max-w-48",
-                                  columns.indexOf(col) === 0 && "pl-4",
-                                )}
-                                draggable
-                                onDragStart={(e) => handleDragStart(e, col)}
-                                onDragOver={handleDragOver}
-                                onDrop={(e) => handleDrop(e, col)}
-                                onDragEnd={handleDragEnd}
-                              >
-                                <div className="flex items-center gap-2 justify-between">
-                                  <div className="flex items-center gap-1">
-                                    <GripVertical className="h-3 w-3 text-muted-foreground hover:text-foreground transition-colors" />
-                                    <span className="truncate font-medium text-sm">{col}</span>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-5 w-5 p-0 hover:bg-background/80"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        toggleColumnExpansion(col)
-                                      }}
-                                      title={expandedColumns.has(col) ? "Collapse column" : "Expand column"}
-                                    >
-                                      <Expand className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-5 w-5 p-0 hover:bg-background/80"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleSort(col)
-                                      }}
-                                      title="Sort column"
-                                    >
-                                      {sortState?.column === col ? (
-                                        sortState.direction === "asc" ? (
-                                          <ArrowUp className="h-3 w-3 text-primary transition-transform duration-200" />
-                                        ) : (
-                                          <ArrowDown className="h-3 w-3 text-primary transition-transform duration-200 scale-110 animate-bounce" />
-                                        )
-                                      ) : (
-                                        <ArrowUpDown className="h-3 w-3 transition-transform duration-200" />
-                                      )}
-                                    </Button>
-                                  </div>
-                                </div>
-                              </TableHead>
-                            ))}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {groupRows.map((row, rowIndex) => (
-                            <TableRow
-                              key={row._key ? `${row._key}-${row._index}` : row._index ?? rowIndex}
-                              className="table-row-hover hover:bg-muted/20 transition-colors"
-                            >
-                              {columns.map((col) => (
-                                <TableCell
-                                  key={col}
-                                  className={cn("py-2", expandedColumns.has(col) ? "max-w-none" : "max-w-48", columns.indexOf(col) === 0 && "pl-4")}
+              {/* Table */}
+              {isExpanded && (
+                <div className={cn(
+                  "relative overflow-auto",
+                  enableGrouping && groupBy !== "none" ? "max-h-[400px]" : "max-h-[600px]"
+                )}>
+                  <Table className="w-full">
+                    <TableHeader className={cn(
+                      "sticky top-0 bg-background border-b border-border z-20",
+                      !enableGrouping || groupBy === "none" ? "shadow-sm" : ""
+                    )}>
+                      <TableRow>
+                        {enableGrouping && groupBy !== "none" && (
+                          <TableHead className="w-12 px-4 py-3">
+                            <GripVertical className="h-3 w-3 text-muted-foreground" />
+                          </TableHead>
+                        )}
+                        {columns.filter(col => !showColumnPanel || visibleColumns.has(col)).map((col) => (
+                          <TableHead
+                            key={col}
+                            className={cn(
+                              "px-4 py-3 font-medium cursor-pointer hover:bg-muted/50",
+                              draggedColumn === col && "dragging opacity-50",
+                              expandedColumns.has(col) ? "min-w-80 max-w-none" : "min-w-32 max-w-48"
+                            )}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, col)}
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, col)}
+                            onDragEnd={handleDragEnd}
+                          >
+                            <div className="flex items-center gap-2">
+                              <GripVertical className="h-3 w-3 text-muted-foreground" />
+                              <span>{col}</span>
+                              <div className="flex items-center gap-1 ml-auto">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-4 w-4 p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    toggleColumnExpansion(col)
+                                  }}
+                                  title={expandedColumns.has(col) ? "Collapse column" : "Expand column"}
                                 >
-                                  <div className={expandedColumns.has(col) ? "" : "truncate"}>
-                                    {renderCellValue(row[col], rowIndex, col)}
-                                  </div>
-                                </TableCell>
-                              ))}
-                            </TableRow>
+                                  <Expand className="h-3 w-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-4 w-4 p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleSort(col)
+                                  }}
+                                >
+                                  {sortState?.column === col ? (
+                                    sortState.direction === "asc" ? (
+                                      <ArrowUp className="h-3 w-3" />
+                                    ) : (
+                                      <ArrowDown className="h-3 w-3" />
+                                    )
+                                  ) : (
+                                    <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody className="bg-background">
+                      {groupRows.map((row, rowIndex) => (
+                        <TableRow key={row._key ? `${row._key}-${row._index}` : row._index ?? rowIndex} className="hover:bg-muted/50">
+                          {enableGrouping && groupBy !== "none" && (
+                            <TableCell className="px-4 py-3 w-12">
+                              <div className="w-1 h-4 bg-muted rounded-full"></div>
+                            </TableCell>
+                          )}
+                          {columns.filter(col => !showColumnPanel || visibleColumns.has(col)).map((col) => (
+                            <TableCell key={col} className={cn("px-4 py-3", expandedColumns.has(col) ? "max-w-none" : "max-w-48")}>
+                              <div className={expandedColumns.has(col) ? "" : "truncate"}>
+                                {renderCellValue(row[col], rowIndex, col)}
+                              </div>
+                            </TableCell>
                           ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </div>
-                </CardContent>
-              ) : null}
-            </Card>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
           )
         })}
       </div>
+
     </div>
   )
 }
