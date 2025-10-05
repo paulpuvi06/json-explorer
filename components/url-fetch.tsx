@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Download, AlertCircle, CheckCircle, ExternalLink, Plus, X, Settings, Eye, EyeOff, List } from "lucide-react"
+import { Download, AlertCircle, CheckCircle, ExternalLink, Plus, X, Settings, Eye, EyeOff, List, RefreshCw, Play, Pause, Clock } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface UrlFetchProps {
@@ -51,6 +51,10 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
   const [headers, setHeaders] = useState<Header[]>([])
   const [enableCustomHeaders, setEnableCustomHeaders] = useState(false)
   const [headerVisibility, setHeaderVisibility] = useState<Record<number, boolean>>({})
+  const [refreshInterval, setRefreshInterval] = useState<number>(0)
+  const [isAutoRefreshing, setIsAutoRefreshing] = useState(false)
+  const [refreshTimer, setRefreshTimer] = useState<NodeJS.Timeout | null>(null)
+  const [lastFetchTime, setLastFetchTime] = useState<number | null>(null)
 
   const isValidUrl = (urlString: string): boolean => {
     try {
@@ -77,6 +81,13 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
     setHeaders([])
     setFetchStatus({ status: "idle" })
     setHeaderVisibility({})
+    setRefreshInterval(0)
+    setIsAutoRefreshing(false)
+    if (refreshTimer) {
+      clearInterval(refreshTimer)
+      setRefreshTimer(null)
+    }
+    setLastFetchTime(null)
   }
 
   // Expose clearAll function to parent component
@@ -85,6 +96,38 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
       clearAllRef.current = clearAll
     }
   }, [clearAllRef])
+
+  // Auto-refresh functions
+  const startAutoRefresh = () => {
+    if (refreshTimer) {
+      clearInterval(refreshTimer)
+    }
+    
+    if (refreshInterval && refreshInterval > 0 && url.trim() && isValidUrl(url)) {
+      setIsAutoRefreshing(true)
+      const timer = setInterval(() => {
+        fetchJsonFromUrl()
+      }, refreshInterval * 1000)
+      setRefreshTimer(timer)
+    }
+  }
+
+  const stopAutoRefresh = () => {
+    if (refreshTimer) {
+      clearInterval(refreshTimer)
+      setRefreshTimer(null)
+    }
+    setIsAutoRefreshing(false)
+  }
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (refreshTimer) {
+        clearInterval(refreshTimer)
+      }
+    }
+  }, [refreshTimer])
 
   const toggleHeaderVisibility = useCallback((index: number) => {
     setHeaderVisibility(prev => ({
@@ -152,6 +195,7 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
         JSON.parse(text)
         onUrlContent(text)
         setFetchStatus({ status: "success" })
+        setLastFetchTime(Date.now())
       } catch (parseError) {
         throw new Error("Response is not valid JSON format")
       }
@@ -239,6 +283,68 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
             )}
           </Button>
         </div>
+      </div>
+
+      {/* Refresh Controls */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <RefreshCw className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Auto-refresh</span>
+            {isAutoRefreshing && (
+              <Badge variant="secondary" className="text-xs bg-green-100 text-green-800 border-green-200">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-1"></div>
+                Active
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              value={refreshInterval}
+              onChange={(e) => setRefreshInterval(parseInt(e.target.value) || 0)}
+              placeholder="0"
+              min="0"
+              max="3600"
+              className="w-20 px-2 py-1 text-sm border border-border rounded bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+            <span className="text-xs text-muted-foreground">seconds</span>
+          </div>
+        </div>
+        
+        {refreshInterval > 0 && (
+          <div className="flex items-center gap-2">
+            {isAutoRefreshing ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={stopAutoRefresh}
+                className="flex items-center gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+              >
+                <Pause className="h-4 w-4" />
+                Stop Auto-refresh
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={startAutoRefresh}
+                disabled={!url.trim() || !isValidUrl(url)}
+                className="flex items-center gap-2"
+              >
+                <Play className="h-4 w-4" />
+                Start Auto-refresh
+              </Button>
+            )}
+            
+            {lastFetchTime && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground ml-auto">
+                <Clock className="h-3 w-3" />
+                <span>Last fetch: {new Date(lastFetchTime).toLocaleTimeString()}</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Custom Headers Toggle */}

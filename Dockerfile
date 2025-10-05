@@ -19,6 +19,8 @@ COPY . .
 
 # Next.js collects completely anonymous telemetry data about general usage.
 ENV NEXT_TELEMETRY_DISABLED 1
+# Disable analytics for Docker builds
+ENV DISABLE_ANALYTICS 1
 
 RUN pnpm run build
 

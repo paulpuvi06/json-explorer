@@ -5,6 +5,9 @@ import { GeistMono } from "geist/font/mono"
 import { Suspense } from "react"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Spinner } from "@/components/ui/spinner"
+import { CookieBanner } from "@/components/cookie-banner"
+import { ConditionalAnalytics } from "@/components/conditional-analytics"
+import { AnalyticsTestControls } from "@/components/analytics-test-controls"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -33,6 +36,9 @@ export default function RootLayout({
             {children}
           </Suspense>
         </ThemeProvider>
+        <CookieBanner />
+        <ConditionalAnalytics />
+        <AnalyticsTestControls />
       </body>
     </html>
   )

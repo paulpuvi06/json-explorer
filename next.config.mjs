@@ -18,6 +18,14 @@ const nextConfig = {
   output: 'export',
   trailingSlash: true,
   distDir: 'out',
+  webpack: (config, { isServer }) => {
+    // Fix for vendor chunk issues in static export
+    if (isServer) {
+      config.externals = [...(config.externals || []), 'react-remove-scroll']
+    }
+    
+    return config
+  },
 }
 
 export default nextConfig

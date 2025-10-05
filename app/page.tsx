@@ -11,14 +11,24 @@ import { JsonTableViewer } from "@/components/json-table-viewer"
 import { JsonTreeViewer } from "@/components/json-tree-viewer"
 import { FileUpload } from "@/components/file-upload"
 import { UrlFetch } from "@/components/url-fetch"
-import { CheckCircle, AlertCircle, FileText, Upload, Code, Table, Shield, Zap, Filter, Download, Search, BarChart3, Copy, RotateCcw, RotateCw, Check, TreePine } from "lucide-react"
+import { CheckCircle, AlertCircle, FileText, Upload, Code, Table, Shield, Zap, Filter, Download, Search, BarChart3, Copy, RotateCcw, RotateCw, Check, TreePine, ExternalLink, Maximize, Minimize, Info, History, Clock, Trash2, HelpCircle, BookOpen, RefreshCw, Settings } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { Tooltip } from "@/components/ui/tooltip"
+import { useEnvironment } from '@/lib/use-environment'
+
+interface FileHistoryItem {
+  id: string
+  name: string
+  data: string
+  timestamp: number
+  size: number
+}
 
 export default function JsonExplorerApp() {
   const [jsonInput, setJsonInput] = useState("")
   const [parsedJson, setParsedJson] = useState<any>(null)
   const [copied, setCopied] = useState(false)
+  const { isDocker, showPersonalBranding } = useEnvironment()
   const [error, setError] = useState<string | null>(null)
   const [isValid, setIsValid] = useState<boolean | null>(null)
   const [dataKey, setDataKey] = useState(0)
@@ -27,6 +37,11 @@ export default function JsonExplorerApp() {
   const [historyIndex, setHistoryIndex] = useState(-1)
   const [viewMode, setViewMode] = useState<"table" | "tree">("table")
   const [transformedData, setTransformedData] = useState<any>(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [showInfoModal, setShowInfoModal] = useState(false)
+  const [fileHistory, setFileHistory] = useState<FileHistoryItem[]>([])
+  const [showHistoryModal, setShowHistoryModal] = useState(false)
+  const [showHelpModal, setShowHelpModal] = useState(false)
   const urlFetchClearAllRef = useRef<(() => void) | null>(null)
 
   // Check if JSON is flat (suitable for table view)
@@ -238,6 +253,70 @@ export default function JsonExplorerApp() {
     if (urlFetchClearAllRef.current) {
       urlFetchClearAllRef.current()
     }
+  }
+
+  // Top corner icon functions
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen()
+      setIsFullscreen(true)
+    } else {
+      document.exitFullscreen()
+      setIsFullscreen(false)
+    }
+  }
+
+  const showInfo = () => {
+    setShowInfoModal(true)
+  }
+
+  // File History functions
+  const saveToFileHistory = (data: string, name: string = 'Untitled') => {
+    if (!data.trim()) return
+    
+    const newItem: FileHistoryItem = {
+      id: Date.now().toString(),
+      name,
+      data,
+      timestamp: Date.now(),
+      size: data.length
+    }
+    
+    const updatedHistory = [newItem, ...fileHistory.filter(item => item.data !== data)].slice(0, 20)
+    setFileHistory(updatedHistory)
+    localStorage.setItem('jsonExplorerHistory', JSON.stringify(updatedHistory))
+  }
+
+  const loadFromFileHistory = (item: FileHistoryItem) => {
+    setJsonInput(item.data)
+    setDataKey(prev => prev + 1)
+    setHistory([])
+    setHistoryIndex(-1)
+    setShowHistoryModal(false)
+    
+    // Scroll to top after loading
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }, 100)
+  }
+
+  const deleteFromHistory = (id: string) => {
+    const updatedHistory = fileHistory.filter(item => item.id !== id)
+    setFileHistory(updatedHistory)
+    localStorage.setItem('jsonExplorerHistory', JSON.stringify(updatedHistory))
+  }
+
+  const clearAllHistory = () => {
+    setFileHistory([])
+    localStorage.removeItem('jsonExplorerHistory')
+  }
+
+  const showHistory = () => {
+    setShowHistoryModal(true)
+  }
+
+  const showHelp = () => {
+    setShowHelpModal(true)
   }
 
   const sampleDataSets = {
@@ -475,36 +554,119 @@ export default function JsonExplorerApp() {
     }
   }, [jsonInput])
 
+  // Handle fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  // Load file history from localStorage on mount
+  useEffect(() => {
+    const savedHistory = localStorage.getItem('jsonExplorerHistory')
+    if (savedHistory) {
+      try {
+        setFileHistory(JSON.parse(savedHistory))
+      } catch (error) {
+        console.error('Failed to load file history:', error)
+      }
+    }
+  }, [])
+
+  // Save to file history when JSON is successfully parsed
+  useEffect(() => {
+    if (parsedJson && jsonInput.trim()) {
+      const fileName = `JSON ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`
+      saveToFileHistory(jsonInput, fileName)
+    }
+  }, [parsedJson])
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <div className="container mx-auto px-4 py-8 max-w-7xl flex-1">
+      {/* Top Corner Icon Bar */}
+      <div className="fixed top-2 right-2 sm:top-4 sm:right-4 z-50 flex flex-col gap-1 sm:gap-2">
+        <Tooltip content="App Information">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={showInfo}
+            className="w-8 h-8 sm:w-10 sm:h-10 p-0 bg-background/80 backdrop-blur-sm border-muted/50 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200 shadow-lg hover:shadow-xl"
+          >
+            <Info className="h-3 w-3 sm:h-4 sm:w-4" />
+          </Button>
+        </Tooltip>
+        
+        <Tooltip content="Help & Documentation">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={showHelp}
+            className="w-8 h-8 sm:w-10 sm:h-10 p-0 bg-background/80 backdrop-blur-sm border-muted/50 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200 shadow-lg hover:shadow-xl"
+          >
+            <BookOpen className="h-3 w-3 sm:h-4 sm:w-4" />
+          </Button>
+        </Tooltip>
+        
+        <Tooltip content="Toggle Fullscreen">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleFullscreen}
+            className="w-8 h-8 sm:w-10 sm:h-10 p-0 bg-background/80 backdrop-blur-sm border-muted/50 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200 shadow-lg hover:shadow-xl"
+          >
+            {isFullscreen ? <Minimize className="h-3 w-3 sm:h-4 sm:w-4" /> : <Maximize className="h-3 w-3 sm:h-4 sm:w-4" />}
+          </Button>
+        </Tooltip>
+        
+        <Tooltip content="File History">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={showHistory}
+            className="w-8 h-8 sm:w-10 sm:h-10 p-0 bg-background/80 backdrop-blur-sm border-muted/50 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200 shadow-lg hover:shadow-xl"
+          >
+            <History className="h-3 w-3 sm:h-4 sm:w-4" />
+            {fileHistory.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-4 w-4 sm:h-5 sm:w-5 flex items-center justify-center">
+                {fileHistory.length}
+              </span>
+            )}
+          </Button>
+        </Tooltip>
+      </div>
+
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-7xl flex-1">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-3 text-balance flex items-center justify-center gap-3">
-            <FileText className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
-            JSON Explorer
+        <div className="text-center mb-4 sm:mb-8">
+          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-2 sm:mb-3 text-balance flex items-center justify-center gap-2 sm:gap-3">
+            <FileText className="h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10 text-primary" />
+            <span className="hidden sm:inline">JSON Explorer</span>
+            <span className="sm:hidden">JSON</span>
           </h1>
-          <p className="text-muted-foreground text-lg sm:text-xl text-pretty mb-8 max-w-3xl mx-auto">
+          <p className="text-muted-foreground text-sm sm:text-lg lg:text-xl text-pretty mb-4 sm:mb-8 max-w-3xl mx-auto px-4">
             The simple way to explore and analyze JSON data
           </p>
           
           {/* Key Benefits */}
-          <div className="flex flex-wrap justify-center gap-6 mb-8 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <Zap className="h-4 w-4 text-primary" />
-              <span>Instant Results</span>
+          <div className="flex flex-wrap justify-center gap-3 sm:gap-6 mb-4 sm:mb-8 text-xs sm:text-sm text-muted-foreground px-4">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Zap className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
+              <span>Instant</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Table className="h-4 w-4 text-primary" />
-              <span>Table View</span>
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Table className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
+              <span>Table</span>
             </div>
-            <div className="flex items-center gap-2">
-              <TreePine className="h-4 w-4 text-primary" />
-              <span>Tree View</span>
+            <div className="flex items-center gap-1 sm:gap-2">
+              <TreePine className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
+              <span>Tree</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Download className="h-4 w-4 text-primary" />
-              <span>Export Ready</span>
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Download className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
+              <span>Export</span>
             </div>
           </div>
 
@@ -538,27 +700,30 @@ export default function JsonExplorerApp() {
             </CardHeader>
             <CardContent className="space-y-4">
               <Tabs defaultValue="text" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 bg-muted/50 p-1 rounded-xl">
+                <TabsList className="grid w-full grid-cols-3 bg-muted/50 p-0.5 sm:p-1 rounded-lg sm:rounded-xl">
                   <TabsTrigger
                     value="text"
-                    className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-200 hover:bg-background/50"
+                    className="flex items-center gap-1 sm:gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-200 hover:bg-background/50 text-xs sm:text-sm px-2 sm:px-3 py-2"
                   >
-                    <FileText className="h-4 w-4" />
-                    Paste JSON
+                    <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500" />
+                    <span className="hidden sm:inline">Paste JSON</span>
+                    <span className="sm:hidden">Paste</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="file"
-                    className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-200 hover:bg-background/50"
+                    className="flex items-center gap-1 sm:gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-200 hover:bg-background/50 text-xs sm:text-sm px-2 sm:px-3 py-2"
                   >
-                    <Upload className="h-4 w-4" />
-                    Upload File
+                    <Upload className="h-3 w-3 sm:h-4 sm:w-4 text-green-500" />
+                    <span className="hidden sm:inline">Upload File</span>
+                    <span className="sm:hidden">Upload</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="url"
-                    className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-200 hover:bg-background/50"
+                    className="flex items-center gap-1 sm:gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-200 hover:bg-background/50 text-xs sm:text-sm px-2 sm:px-3 py-2"
                   >
-                    <Download className="h-4 w-4" />
-                    Fetch URL
+                    <Download className="h-3 w-3 sm:h-4 sm:w-4 text-purple-500" />
+                    <span className="hidden sm:inline">Fetch URL</span>
+                    <span className="sm:hidden">URL</span>
                   </TabsTrigger>
                 </TabsList>
 
@@ -568,18 +733,18 @@ export default function JsonExplorerApp() {
                       placeholder="Paste your JSON data here..."
                       value={jsonInput}
                       onChange={(e) => setJsonInput(e.target.value)}
-                      className="font-mono text-sm pr-20 border-2 border-muted/50 focus:border-primary/50 focus:ring-0 focus:outline-none transition-all duration-200 bg-background/50 resize-none scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent hover:border-muted-foreground/30 p-8"
+                      className="font-mono text-xs sm:text-sm pr-16 sm:pr-20 border-2 border-muted/50 focus:border-primary/50 focus:ring-0 focus:outline-none transition-all duration-200 bg-background/50 resize-none scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent hover:border-muted-foreground/30 p-4 sm:p-8"
                       style={{
                         background: 'linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(255,255,255,0.01) 100%)',
                         boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.05)',
                         height: 'auto',
-                        minHeight: '200px',
-                        maxHeight: '60vh'
+                        minHeight: '150px',
+                        maxHeight: '40vh'
                       }}
                       onInput={(e) => {
                         const target = e.target as HTMLTextAreaElement;
                         target.style.height = 'auto';
-                        target.style.height = Math.max(200, Math.min(target.scrollHeight, window.innerHeight * 0.6)) + 'px';
+                        target.style.height = Math.max(150, Math.min(target.scrollHeight, window.innerHeight * 0.4)) + 'px';
                       }}
                     />
                     {/* Scroll to Data Icon */}
@@ -661,12 +826,12 @@ export default function JsonExplorerApp() {
                 </TabsContent>
               </Tabs>
 
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 <Tooltip content="Parse and analyze JSON (Ctrl+Enter)">
                   <Button 
                     onClick={validateAndParseJson} 
                     disabled={isLoading}
-                    className="flex items-center gap-2 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-200 border-0"
+                    className="flex items-center gap-2 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-200 border-0 w-full sm:w-auto"
                   >
                     {isLoading ? (
                       <>
@@ -689,10 +854,11 @@ export default function JsonExplorerApp() {
                     onClick={formatJson} 
                     disabled={!parsedJson}
                     title="Format JSON with proper indentation"
-                    className="hover:bg-muted/50 transition-all duration-200 border-muted/50 hover:border-muted-foreground/30"
+                    className="hover:bg-muted/50 transition-all duration-200 border-muted/50 hover:border-muted-foreground/30 w-full sm:w-auto"
                   >
                     <Copy className="h-4 w-4" />
                     <span className="hidden sm:inline">Format</span>
+                    <span className="sm:hidden">Format</span>
                   </Button>
                 </Tooltip>
                 <Tooltip content="Minify JSON (remove whitespace)">
@@ -701,10 +867,11 @@ export default function JsonExplorerApp() {
                     onClick={minifyJson} 
                     disabled={!parsedJson}
                     title="Minify JSON (remove whitespace)"
-                    className="hover:bg-muted/50 transition-all duration-200 border-muted/50 hover:border-muted-foreground/30"
+                    className="hover:bg-muted/50 transition-all duration-200 border-muted/50 hover:border-muted-foreground/30 w-full sm:w-auto"
                   >
                     <Code className="h-4 w-4" />
                     <span className="hidden sm:inline">Minify</span>
+                    <span className="sm:hidden">Minify</span>
                   </Button>
                 </Tooltip>
                 <Tooltip content="Undo (Ctrl+Z)">
@@ -815,25 +982,27 @@ export default function JsonExplorerApp() {
               </CardHeader>
               <CardContent>
                 <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as "table" | "tree")} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-1 rounded-xl mb-4">
+                  <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-0.5 sm:p-1 rounded-lg sm:rounded-xl mb-2 sm:mb-4">
                     <TabsTrigger 
                       value="table" 
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2"
                       disabled={!isFlatJson}
                     >
-                      <Table className="h-4 w-4" />
-                      Table View
+                      <Table className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">Table View</span>
+                      <span className="sm:hidden">Table</span>
                       {!isFlatJson && (
-                        <Badge variant="secondary" className="text-xs h-4 px-1">
+                        <Badge variant="secondary" className="text-xs h-3 sm:h-4 px-1">
                           N/A
                         </Badge>
                       )}
                     </TabsTrigger>
-                    <TabsTrigger value="tree" className="flex items-center gap-2">
-                      <FileText className="h-4 w-4" />
-                      Tree View
+                    <TabsTrigger value="tree" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2">
+                      <TreePine className="h-3 w-3 sm:h-4 sm:w-4" />
+                      <span className="hidden sm:inline">Tree View</span>
+                      <span className="sm:hidden">Tree</span>
                       {!isFlatJson && (
-                        <Badge variant="default" className="text-xs h-4 px-1 bg-green-600">
+                        <Badge variant="default" className="text-xs h-3 sm:h-4 px-1 bg-green-600">
                           Active
                         </Badge>
                       )}
@@ -869,56 +1038,394 @@ export default function JsonExplorerApp() {
         </div>
       </div>
       
-      {/* Simple Footer */}
+      {/* Enhanced Footer */}
       <footer className="bg-muted/30 border-t border-border/50 mt-16">
-        <div className="container mx-auto px-4 py-6 max-w-7xl">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="container mx-auto px-4 py-4 max-w-7xl">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <span>© 2025 JSON Explorer</span>
-              <span>•</span>
-              <span>Built with Next.js & Tailwind CSS</span>
-              <span>•</span>
-              <span className="flex items-center gap-1">
-                <span>Made with</span>
-                <span className="text-red-500">❤️</span>
-                <span>by Paul</span>
-              </span>
+              {showPersonalBranding && (
+                <>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    <span>Envisioned by</span>
+                    <a 
+                      href="https://www.linkedin.com/in/paulpuvi/" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"
+                    >
+                      <span>Paul</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                    <span>and completed with AI assistance 😉</span>
+                  </span>
+                </>
+              )}
             </div>
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => {
-                  if (navigator.share) {
-                    navigator.share({
-                      title: 'JSON Explorer',
-                      text: 'Explore and analyze JSON data with advanced filtering and export capabilities',
-                      url: window.location.href
-                    })
-                  } else {
-                    navigator.clipboard.writeText(window.location.href)
-                  }
-                }}
-                className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
-                </svg>
-                Share
-              </button>
-              <a 
-                href="https://hub.docker.com/r/paulpuvi/json-explorer" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-              >
-                <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M13.983 11.078h2.119a.186.186 0 00.186-.185V8.463a.185.185 0 00-.186-.186h-2.119a.185.185 0 00-.185.186v2.43c0 .102.083.185.185.185zM8.463 11.078h2.119a.186.186 0 00.186-.185V8.463a.185.185 0 00-.186-.186H8.463a.185.185 0 00-.185.186v2.43c0 .102.083.185.185.185zM8.463 15.537h2.119a.186.186 0 00.186-.185v-2.43a.185.185 0 00-.186-.185H8.463a.185.185 0 00-.185.185v2.43c0 .102.083.185.185.185zM13.983 15.537h2.119a.186.186 0 00.186-.185v-2.43a.185.185 0 00-.186-.185h-2.119a.185.185 0 00-.185.185v2.43c0 .102.083.185.185.185z"/>
-                </svg>
-                Docker
-              </a>
-            </div>
+            {!isDocker && (
+              <div className="flex items-center gap-4">
+                <a 
+                  href="https://hub.docker.com/r/paulpuvi/json-explorer" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                >
+                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M13.983 11.078h2.119a.186.186 0 00.186-.185V8.463a.185.185 0 00-.186-.186h-2.119a.185.185 0 00-.185.186v2.43c0 .102.083.185.185.185zM8.463 11.078h2.119a.186.186 0 00.186-.185V8.463a.185.185 0 00-.186-.186H8.463a.185.185 0 00-.185.186v2.43c0 .102.083.185.185.185zM8.463 15.537h2.119a.186.186 0 00.186-.185v-2.43a.185.185 0 00-.186-.185H8.463a.185.185 0 00-.185.185v2.43c0 .102.083.185.185.185zM13.983 15.537h2.119a.186.186 0 00.186-.185v-2.43a.185.185 0 00-.186-.185h-2.119a.185.185 0 00-.185.185v2.43c0 .102.083.185.185.185z"/>
+                  </svg>
+                  Run with Docker
+                </a>
+              </div>
+            )}
           </div>
         </div>
       </footer>
+
+      {/* Help & Documentation Modal */}
+      {showHelpModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-background border border-border rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-semibold flex items-center gap-2">
+                  <BookOpen className="h-6 w-6 text-primary" />
+                  Help & Documentation
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowHelpModal(false)}
+                  className="h-8 w-8 p-0 hover:bg-muted"
+                >
+                  ×
+                </Button>
+              </div>
+              
+              <div className="space-y-8">
+                {/* Input Methods */}
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <Code className="h-5 w-5 text-primary" />
+                    Input Methods
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="border border-border rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <FileText className="h-4 w-4 text-blue-500" />
+                        <h4 className="font-medium">Paste JSON</h4>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Copy & paste JSON directly. Use <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Ctrl+Enter</kbd> to parse.</p>
+                    </div>
+
+                    <div className="border border-border rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Upload className="h-4 w-4 text-green-500" />
+                        <h4 className="font-medium">Upload File</h4>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Drag & drop or browse for JSON files up to 10MB.</p>
+                    </div>
+
+                    <div className="border border-border rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Download className="h-4 w-4 text-purple-500" />
+                        <h4 className="font-medium">Fetch URL</h4>
+                      </div>
+                      <p className="text-sm text-muted-foreground">Load JSON from any URL with auto-refresh support.</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* View Modes */}
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <Table className="h-5 w-5 text-primary" />
+                    View Modes
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="border border-border rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Table className="h-4 w-4 text-blue-500" />
+                        <h4 className="font-medium">Table View</h4>
+                      </div>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        <li>• Perfect for arrays of objects</li>
+                        <li>• Sortable columns</li>
+                        <li>• Search and filter capabilities</li>
+                        <li>• Export to CSV</li>
+                        <li>• Auto-switches for flat JSON</li>
+                      </ul>
+                    </div>
+
+                    <div className="border border-border rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <TreePine className="h-4 w-4 text-green-500" />
+                        <h4 className="font-medium">Tree View</h4>
+                      </div>
+                       <ul className="text-sm text-muted-foreground space-y-1">
+                         <li>• Hierarchical data visualization</li>
+                         <li>• Edit data directly</li>
+                         <li>• Copy individual values</li>
+                         <li>• Transform/flatten data for table view</li>
+                         <li>• Works with any JSON structure</li>
+                       </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Table Features */}
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <Table className="h-5 w-5 text-primary" />
+                    Table View Features
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm">
+                        <BarChart3 className="h-4 w-4 text-blue-500" />
+                        <span><strong>Grouping:</strong> Organize data by columns</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Filter className="h-4 w-4 text-green-500" />
+                        <span><strong>Filtering:</strong> Search and filter rows</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Settings className="h-4 w-4 text-purple-500" />
+                        <span><strong>Columns:</strong> Show/hide, sort, resize</span>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Download className="h-4 w-4 text-orange-500" />
+                        <span><strong>Export:</strong> CSV, JSON, Excel formats</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Search className="h-4 w-4 text-indigo-500" />
+                        <span><strong>Search:</strong> Find data across columns</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <BarChart3 className="h-4 w-4 text-red-500" />
+                        <span><strong>Sorting:</strong> Multi-column sorting</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Features */}
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-primary" />
+                    Features
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm">
+                        <History className="h-4 w-4 text-blue-500" />
+                        <span><strong>File History</strong> - Saves recent JSON files locally</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Maximize className="h-4 w-4 text-green-500" />
+                        <span><strong>Fullscreen</strong> - Distraction-free viewing</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Copy className="h-4 w-4 text-purple-500" />
+                        <span><strong>Copy JSON</strong> - One-click clipboard copy</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <RotateCcw className="h-4 w-4 text-orange-500" />
+                        <span><strong>Undo/Redo</strong> - Edit history support</span>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm">
+                        <BarChart3 className="h-4 w-4 text-red-500" />
+                        <span><strong>Data Stats</strong> - Object/array counts</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <span><strong>Validation</strong> - Real-time JSON checking</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <RefreshCw className="h-4 w-4 text-blue-500" />
+                        <span><strong>Auto-refresh</strong> - Live data updates</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Download className="h-4 w-4 text-indigo-500" />
+                        <span><strong>Export</strong> - Download processed data</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tips */}
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <Zap className="h-5 w-5 text-primary" />
+                    Pro Tips
+                  </h3>
+                  
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <ul className="text-sm text-blue-800 space-y-2">
+                      <li>• <strong>Large files:</strong> Use Tree view for better performance</li>
+                      <li>• <strong>API data:</strong> Set auto-refresh for live updates</li>
+                      <li>• <strong>Complex data:</strong> Flatten nested objects to enable table view</li>
+                      <li>• <strong>Table analysis:</strong> Use grouping and filters to analyze data</li>
+                      <li>• <strong>Export:</strong> Download filtered data in CSV/Excel format</li>
+                      <li>• <strong>History:</strong> Check File History to reload recent files</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* File History Modal */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-background border border-border rounded-lg shadow-xl max-w-2xl w-full max-h-[95vh] sm:max-h-[80vh] overflow-y-auto">
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  <History className="h-5 w-5 text-primary" />
+                  File History
+                </h2>
+                <div className="flex items-center gap-2">
+                  {fileHistory.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearAllHistory}
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      Clear All
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowHistoryModal(false)}
+                    className="h-8 w-8 p-0 hover:bg-muted"
+                  >
+                    ×
+                  </Button>
+                </div>
+              </div>
+              
+              {fileHistory.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <History className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium mb-2">No files in history</p>
+                  <p className="text-sm">Parse some JSON to start building your history</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {fileHistory.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                          <span className="font-medium text-sm truncate">{item.name}</span>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            <span>{new Date(item.timestamp).toLocaleString()}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span>{item.size.toLocaleString()} chars</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => loadFromFileHistory(item)}
+                          className="text-xs"
+                        >
+                          Load
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteFromHistory(item.id)}
+                          className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Info Modal */}
+      {showInfoModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-background border border-border rounded-lg shadow-xl max-w-md w-full max-h-[95vh] sm:max-h-[80vh] overflow-y-auto">
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  <Info className="h-5 w-5 text-primary" />
+                  App Information
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowInfoModal(false)}
+                  className="h-8 w-8 p-0 hover:bg-muted"
+                >
+                  ×
+                </Button>
+              </div>
+              
+              <div className="space-y-4 text-sm">
+                <div>
+                  <h3 className="font-medium text-foreground mb-2">App Information</h3>
+                  <div className="space-y-2 text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      <span><strong>Next.js</strong> v15.5.4</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
+                      <span><strong>React</strong> v19</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                      <span><strong>Static Export</strong></span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                      <span><strong>Docker Support</strong> (served via nginx)</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-border">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Version 1.0.0</span>
+                    <span>© 2025 JSON Explorer</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
