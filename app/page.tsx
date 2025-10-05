@@ -26,15 +26,17 @@ export default function JsonExplorerApp() {
   const [history, setHistory] = useState<string[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
   const [viewMode, setViewMode] = useState<"table" | "tree">("table")
+  const [transformedData, setTransformedData] = useState<any>(null)
   const urlFetchClearAllRef = useRef<(() => void) | null>(null)
 
   // Check if JSON is flat (suitable for table view)
   const isFlatJson = useMemo(() => {
-    if (!parsedJson) return true
+    const dataToCheck = transformedData || parsedJson
+    if (!dataToCheck) return true
     
     // If it's an array of objects, check if each object is flat
-    if (Array.isArray(parsedJson)) {
-      return parsedJson.every(item => {
+    if (Array.isArray(dataToCheck)) {
+      return dataToCheck.every(item => {
         if (typeof item !== "object" || item === null) return true
         
         // Check if object has nested objects/arrays (more than 1 level deep)
@@ -53,8 +55,8 @@ export default function JsonExplorerApp() {
     }
     
     // For single objects, check if they have nested objects
-    if (typeof parsedJson === "object" && parsedJson !== null) {
-      const values = Object.values(parsedJson)
+    if (typeof dataToCheck === "object" && dataToCheck !== null) {
+      const values = Object.values(dataToCheck)
       const hasNestedObjects = values.some(
         (value) => typeof value === "object" && value !== null && !Array.isArray(value)
       )
@@ -98,6 +100,16 @@ export default function JsonExplorerApp() {
     }
     
     return true
+  }, [parsedJson, transformedData])
+
+  // Handle data transformation from tree view
+  const handleDataChange = (newData: any) => {
+    setTransformedData(newData)
+  }
+
+  // Reset transformed data when new JSON is loaded
+  useEffect(() => {
+    setTransformedData(null)
   }, [parsedJson])
 
   // Auto-switch to tree view if JSON is not flat
@@ -221,6 +233,7 @@ export default function JsonExplorerApp() {
     setDataKey(0)
     setHistory([])
     setHistoryIndex(-1)
+    setTransformedData(null)
     // Also clear URL fetch data
     if (urlFetchClearAllRef.current) {
       urlFetchClearAllRef.current()
@@ -764,9 +777,9 @@ export default function JsonExplorerApp() {
                     <CardDescription>Analyze your data with filtering, grouping, and export options</CardDescription>
                   </div>
                   {viewMode === "table" ? (
-                    <JsonTableViewer key={dataKey} data={parsedJson} showStatsOnly={true} />
+                    <JsonTableViewer key={dataKey} data={transformedData || parsedJson} showStatsOnly={true} />
                   ) : (
-                    <JsonTreeViewer key={dataKey} data={parsedJson} showStatsOnly={true} />
+                    <JsonTreeViewer key={dataKey} data={transformedData || parsedJson} showStatsOnly={true} />
                   )}
                 </div>
               </CardHeader>
@@ -809,7 +822,7 @@ export default function JsonExplorerApp() {
                   
                   <TabsContent value="table">
                     {isFlatJson ? (
-                      <JsonTableViewer key={dataKey} data={parsedJson} />
+                      <JsonTableViewer key={dataKey} data={transformedData || parsedJson} />
                     ) : (
                       <div className="flex items-center justify-center py-8 text-muted-foreground">
                         <div className="text-center">
@@ -821,7 +834,12 @@ export default function JsonExplorerApp() {
                     )}
                   </TabsContent>
                   <TabsContent value="tree">
-                    <JsonTreeViewer key={dataKey} data={parsedJson} />
+                    <JsonTreeViewer 
+                      key={dataKey} 
+                      data={transformedData || parsedJson} 
+                      showDataPanel={true}
+                      onDataChange={handleDataChange}
+                    />
                   </TabsContent>
                 </Tabs>
               </CardContent>

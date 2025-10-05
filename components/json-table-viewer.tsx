@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
 import {
   ChevronDown,
   ChevronRight,
@@ -27,6 +28,7 @@ import {
   FileText,
   FileCode,
   Eye,
+  Edit3,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -38,8 +40,8 @@ interface JsonTableViewerProps {
 interface FilterState {
   column: string
   value: string
-  type: "dropdown" | "search" | "regex"
-  searchOperator?: "contains" | "not_contains" | "matches" | "not_matches"
+  type: "contains" | "exact" | "regex"
+  searchOperator?: "contains" | "not_contains" | "matches" | "not_matches" | "equals" | "not_equals"
 }
 
 interface FilterLogic {
@@ -63,6 +65,12 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null)
   const [sortState, setSortState] = useState<SortState | null>(null)
   const [expandedColumns, setExpandedColumns] = useState<Set<string>>(new Set())
+  const [renamedColumns, setRenamedColumns] = useState<Record<string, string>>({})
+  const [renameDialog, setRenameDialog] = useState<{ isOpen: boolean; column: string; newName: string }>({
+    isOpen: false,
+    column: '',
+    newName: ''
+  })
   
   // Simple toggle states for UI features
   const [enableGrouping, setEnableGrouping] = useState<boolean>(false)
@@ -206,32 +214,41 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
 
         const cellString = String(cellValue || "").toLowerCase()
 
-        if (filter.type === "dropdown") {
-          return cellString === filterValue
-        } else {
-          // Handle search operators
+        if (filter.type === "contains") {
+          // Handle contains/not contains matching
           const operator = filter.searchOperator || "contains"
           
           if (operator === "not_contains") {
             return !cellString.includes(filterValue)
-          } else if (operator === "matches") {
-            try {
-              const regex = new RegExp(filterValue, 'i')
-              return regex.test(cellString)
-            } catch {
-              return false
-            }
-          } else if (operator === "not_matches") {
-            try {
-              const regex = new RegExp(filterValue, 'i')
-              return !regex.test(cellString)
-            } catch {
-              return true
-            }
           } else {
-            // Default to "contains"
             return cellString.includes(filterValue)
           }
+        } else if (filter.type === "regex") {
+          // Handle regex matching
+          try {
+            const regex = new RegExp(filterValue, 'i')
+            const operator = filter.searchOperator || "matches"
+            
+            if (operator === "not_matches") {
+              return !regex.test(cellString)
+            } else {
+              return regex.test(cellString)
+            }
+          } catch {
+            return false
+          }
+        } else if (filter.type === "exact") {
+          // Handle exact matching
+          const operator = filter.searchOperator || "equals"
+          
+          if (operator === "not_equals") {
+            return cellString !== filterValue
+          } else {
+            return cellString === filterValue
+          }
+        } else {
+          // Fallback to contains
+          return cellString.includes(filterValue)
         }
       })
 
@@ -441,6 +458,44 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
     })
   }
 
+  const openRenameDialog = (column: string) => {
+    setRenameDialog({
+      isOpen: true,
+      column,
+      newName: renamedColumns[column] || column
+    })
+  }
+
+  const closeRenameDialog = () => {
+    setRenameDialog({
+      isOpen: false,
+      column: '',
+      newName: ''
+    })
+  }
+
+  const handleRenameColumn = () => {
+    if (renameDialog.newName.trim() && renameDialog.newName !== renameDialog.column) {
+      setRenamedColumns(prev => ({
+        ...prev,
+        [renameDialog.column]: renameDialog.newName.trim()
+      }))
+    }
+    closeRenameDialog()
+  }
+
+  const resetColumnName = (column: string) => {
+    setRenamedColumns(prev => {
+      const newRenamed = { ...prev }
+      delete newRenamed[column]
+      return newRenamed
+    })
+  }
+
+  const getDisplayColumnName = (column: string) => {
+    return renamedColumns[column] || column
+  }
+
   const toggleColumnVisibility = (column: string) => {
     setVisibleColumns(prev => {
       const newSet = new Set(prev)
@@ -572,7 +627,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
 
   const addFilter = () => {
     if (columns.length > 0) {
-      setFilters((prev) => [...prev, { column: columns[0], value: "", type: "search" }])
+      setFilters((prev) => [...prev, { column: columns[0], value: "", type: "contains" }])
     }
   }
 
@@ -835,7 +890,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
                     <SelectItem value="none">No grouping</SelectItem>
                     {columns.map((col) => (
                       <SelectItem key={col} value={col}>
-                        {col}
+                        {getDisplayColumnName(col)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -959,7 +1014,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
                         <SelectContent>
                           {columns.map((col) => (
                             <SelectItem key={col} value={col}>
-                              {col}
+                              {getDisplayColumnName(col)}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -967,57 +1022,20 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
 
                       <Select
                         value={filter.type}
-                        onValueChange={(value: "dropdown" | "search" | "regex") => updateFilter(index, "type", value)}
+                        onValueChange={(value: "contains" | "exact" | "regex") => updateFilter(index, "type", value)}
                       >
                         <SelectTrigger className="w-32 h-9">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="search">Search</SelectItem>
-                          <SelectItem value="dropdown">Select</SelectItem>
+                          <SelectItem value="contains">Search</SelectItem>
+                          <SelectItem value="exact">Exact</SelectItem>
                           <SelectItem value="regex">Regex</SelectItem>
                         </SelectContent>
                       </Select>
 
-                      {filter.type === "dropdown" ? (
-                        <Select value={filter.value} onValueChange={(value) => updateFilter(index, "value", value)}>
-                          <SelectTrigger className="flex-1 h-9">
-                            <SelectValue placeholder="Select value..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="default">All values</SelectItem>
-                            {columnValues[filter.column]?.slice(0, 50).map((value) => (
-                              <SelectItem key={value} value={value}>
-                                {value}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : filter.type === "regex" ? (
-                        <div className="flex-1 flex gap-2">
-                          <Select
-                            value={filter.searchOperator || "matches"}
-                            onValueChange={(value: "matches" | "not_matches") => updateFilter(index, "searchOperator", value)}
-                          >
-                            <SelectTrigger className="w-32 h-9">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="matches">Matches</SelectItem>
-                              <SelectItem value="not_matches">Not Matches</SelectItem>
-                            </SelectContent>
-                          </Select>
-
-                          <input
-                            type="text"
-                            value={filter.value}
-                            onChange={(e) => updateFilter(index, "value", e.target.value)}
-                            placeholder="Enter regex pattern..."
-                            className="flex-1 h-9 px-3 text-sm bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                          />
-                        </div>
-                      ) : (
-                        <div className="flex-1 flex gap-2">
+                      <div className="flex-1 flex gap-2">
+                        {filter.type === "contains" ? (
                           <Select
                             value={filter.searchOperator || "contains"}
                             onValueChange={(value: "contains" | "not_contains") => updateFilter(index, "searchOperator", value)}
@@ -1030,16 +1048,46 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
                               <SelectItem value="not_contains">Not Contains</SelectItem>
                             </SelectContent>
                           </Select>
+                        ) : filter.type === "exact" ? (
+                          <Select
+                            value={filter.searchOperator || "equals"}
+                            onValueChange={(value: "equals" | "not_equals") => updateFilter(index, "searchOperator", value)}
+                          >
+                            <SelectTrigger className="w-32 h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="equals">Equals</SelectItem>
+                              <SelectItem value="not_equals">Not Equals</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Select
+                            value={filter.searchOperator || "matches"}
+                            onValueChange={(value: "matches" | "not_matches") => updateFilter(index, "searchOperator", value)}
+                          >
+                            <SelectTrigger className="w-32 h-9">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="matches">Matches</SelectItem>
+                              <SelectItem value="not_matches">Not Matches</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
 
-                          <input
-                            type="text"
-                            value={filter.value}
-                            onChange={(e) => updateFilter(index, "value", e.target.value)}
-                            placeholder="Type to search..."
-                            className="flex-1 h-9 px-3 text-sm bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                          />
-                        </div>
-                      )}
+                        <input
+                          type="text"
+                          value={filter.value}
+                          onChange={(e) => updateFilter(index, "value", e.target.value)}
+                          placeholder={
+                            filter.type === "contains" ? "Search for text..." :
+                            filter.type === "exact" ? "Enter exact value..." :
+                            "Enter regex pattern..."
+                          }
+                          className="flex-1 h-9 px-3 text-sm bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                      </div>
 
                       <Button
                         variant="ghost"
@@ -1125,7 +1173,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
                       className="h-4 w-4"
                     />
                     <label htmlFor={`column-${col}`} className="text-sm cursor-pointer truncate">
-                      {col}
+                      {getDisplayColumnName(col)}
                     </label>
                   </div>
                 ))}
@@ -1135,155 +1183,243 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
         </div>
       )}
 
-      {/* No Results State */}
+      {/* No Results State - Show inside table area */}
       {enableAdvancedFilters && sortedTableData.length === 0 && tableData.length > 0 && (
-        <div className="text-center py-12 bg-muted/10 rounded-lg border border-muted/30">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-12 h-12 bg-muted/30 rounded-full flex items-center justify-center">
-              <Filter className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="text-base font-medium text-foreground">No results match your filters</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Try adjusting your filter criteria or switching to {filterLogic.operator === "AND" ? "OR" : "AND"} logic
-              </p>
-            </div>
-            <Button 
-              variant="ghost" 
-              onClick={clearAllFilters} 
-              className="text-sm text-muted-foreground hover:text-foreground"
-            >
-              Clear All Filters
-            </Button>
-          </div>
+        <div className="relative overflow-auto max-h-[600px]">
+          <Table className="w-full">
+            <TableBody className="bg-background">
+              <TableRow>
+                <TableCell colSpan={columns.filter(col => !showColumnPanel || visibleColumns.has(col)).length + (enableGrouping && groupBy !== "none" ? 1 : 0)} className="px-4 py-12">
+                  <div className="text-center">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-12 h-12 bg-muted/30 rounded-full flex items-center justify-center">
+                        <Filter className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="text-base font-medium text-foreground">No results match your filters</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Try adjusting your filter criteria or switching to {filterLogic.operator === "AND" ? "OR" : "AND"} logic
+                        </p>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        onClick={clearAllFilters} 
+                        className="text-sm text-muted-foreground hover:text-foreground"
+                      >
+                        Clear All Filters
+                      </Button>
+                    </div>
+                  </div>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
         </div>
       )}
 
-      {/* Data Table */}
-      <div className="space-y-3">
-        {Object.entries(groupedData).map(([groupKey, groupRows]) => {
-          const isExpanded = expandedGroups[groupKey] !== false
-          const showGroupHeader = enableGrouping && groupBy !== "none" && Object.keys(groupedData).length > 1
+      {/* Data Table - Only show when there are results */}
+      {sortedTableData.length > 0 && (
+        <div className="space-y-3">
+          {Object.entries(groupedData).map(([groupKey, groupRows]) => {
+            const isExpanded = expandedGroups[groupKey] !== false
+            const showGroupHeader = enableGrouping && groupBy !== "none" && Object.keys(groupedData).length > 1
 
-          return (
-            <div key={groupKey} className="border border-border rounded-lg overflow-hidden">
-              {/* Group Header */}
-              {showGroupHeader && (
-                <div className="bg-muted/50 px-4 py-3 border-b border-border">
-                  <div className="flex items-center gap-3">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 w-6 p-0"
-                      onClick={() => toggleGroup(groupKey)}
-                    >
-                      {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                    </Button>
-                    <span className="font-medium">{groupKey}</span>
-                    <Badge variant="secondary" className="text-xs">
-                      {groupRows.length} items
-                    </Badge>
+            return (
+              <div key={groupKey} className="border border-border rounded-lg overflow-hidden">
+                {/* Group Header */}
+                {showGroupHeader && (
+                  <div className="bg-muted/50 px-4 py-3 border-b border-border">
+                    <div className="flex items-center gap-3">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={() => toggleGroup(groupKey)}
+                      >
+                        {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      </Button>
+                      <span className="font-medium">{groupKey}</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {groupRows.length} items
+                      </Badge>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Table */}
-              {isExpanded && (
-                <div className={cn(
-                  "relative overflow-auto",
-                  enableGrouping && groupBy !== "none" ? "max-h-[400px]" : "max-h-[600px]"
-                )}>
-                  <Table className="w-full">
-                    <TableHeader className={cn(
-                      "sticky top-0 bg-background border-b border-border z-20",
-                      !enableGrouping || groupBy === "none" ? "shadow-sm" : ""
-                    )}>
-                      <TableRow>
-                        {enableGrouping && groupBy !== "none" && (
-                          <TableHead className="w-12 px-4 py-3">
-                            <GripVertical className="h-3 w-3 text-muted-foreground" />
-                          </TableHead>
-                        )}
-                        {columns.filter(col => !showColumnPanel || visibleColumns.has(col)).map((col) => (
-                          <TableHead
-                            key={col}
-                            className={cn(
-                              "px-4 py-3 font-medium cursor-pointer hover:bg-muted/50",
-                              draggedColumn === col && "dragging opacity-50",
-                              expandedColumns.has(col) ? "min-w-80 max-w-none" : "min-w-32 max-w-48"
-                            )}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, col)}
-                            onDragOver={handleDragOver}
-                            onDrop={(e) => handleDrop(e, col)}
-                            onDragEnd={handleDragEnd}
-                          >
-                            <div className="flex items-center gap-2">
-                              <GripVertical className="h-3 w-3 text-muted-foreground" />
-                              <span>{col}</span>
-                              <div className="flex items-center gap-1 ml-auto">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-4 w-4 p-0"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    toggleColumnExpansion(col)
-                                  }}
-                                  title={expandedColumns.has(col) ? "Collapse column" : "Expand column"}
-                                >
-                                  <Expand className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-4 w-4 p-0"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleSort(col)
-                                  }}
-                                >
-                                  {sortState?.column === col ? (
-                                    sortState.direction === "asc" ? (
-                                      <ArrowUp className="h-3 w-3" />
-                                    ) : (
-                                      <ArrowDown className="h-3 w-3" />
-                                    )
-                                  ) : (
-                                    <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
-                                  )}
-                                </Button>
-                              </div>
-                            </div>
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody className="bg-background">
-                      {groupRows.map((row, rowIndex) => (
-                        <TableRow key={row._key ? `${row._key}-${row._index}` : row._index ?? rowIndex} className="hover:bg-muted/50">
+                {/* Table */}
+                {isExpanded && (
+                  <div className={cn(
+                    "relative overflow-auto",
+                    enableGrouping && groupBy !== "none" ? "max-h-[400px]" : "max-h-[600px]"
+                  )}>
+                    <Table className="w-full">
+                      <TableHeader className={cn(
+                        "sticky top-0 bg-background border-b border-border z-20",
+                        !enableGrouping || groupBy === "none" ? "shadow-sm" : ""
+                      )}>
+                        <TableRow>
                           {enableGrouping && groupBy !== "none" && (
-                            <TableCell className="px-4 py-3 w-12">
-                              <div className="w-1 h-4 bg-muted rounded-full"></div>
-                            </TableCell>
+                            <TableHead className="w-12 px-4 py-3">
+                              <GripVertical className="h-3 w-3 text-muted-foreground" />
+                            </TableHead>
                           )}
                           {columns.filter(col => !showColumnPanel || visibleColumns.has(col)).map((col) => (
-                            <TableCell key={col} className={cn("px-4 py-3", expandedColumns.has(col) ? "max-w-none" : "max-w-48")}>
-                              <div className={expandedColumns.has(col) ? "" : "truncate"}>
-                                {renderCellValue(row[col], rowIndex, col)}
+                            <TableHead
+                              key={col}
+                              className={cn(
+                                "px-4 py-3 font-medium cursor-pointer hover:bg-muted/50",
+                                draggedColumn === col && "dragging opacity-50",
+                                expandedColumns.has(col) ? "min-w-80 max-w-none" : "min-w-40 max-w-64"
+                              )}
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, col)}
+                              onDragOver={handleDragOver}
+                              onDrop={(e) => handleDrop(e, col)}
+                              onDragEnd={handleDragEnd}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                <span className="truncate" title={col}>{getDisplayColumnName(col)}</span>
+                                <div className="flex items-center gap-1 ml-auto">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-4 w-4 p-0"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      openRenameDialog(col)
+                                    }}
+                                    title="Rename column"
+                                  >
+                                    <Edit3 className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-4 w-4 p-0"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      toggleColumnExpansion(col)
+                                    }}
+                                    title={expandedColumns.has(col) ? "Collapse column" : "Expand column"}
+                                  >
+                                    <Expand className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-4 w-4 p-0"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      handleSort(col)
+                                    }}
+                                  >
+                                    {sortState?.column === col ? (
+                                      sortState.direction === "asc" ? (
+                                        <ArrowUp className="h-3 w-3" />
+                                      ) : (
+                                        <ArrowDown className="h-3 w-3" />
+                                      )
+                                    ) : (
+                                      <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
+                                    )}
+                                  </Button>
+                                </div>
                               </div>
-                            </TableCell>
+                            </TableHead>
                           ))}
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody className="bg-background">
+                        {groupRows.map((row, rowIndex) => (
+                          <TableRow key={row._key ? `${row._key}-${row._index}` : row._index ?? rowIndex} className="hover:bg-muted/50">
+                            {enableGrouping && groupBy !== "none" && (
+                              <TableCell className="px-4 py-3 w-12">
+                                <div className="w-1 h-4 bg-muted rounded-full"></div>
+                              </TableCell>
+                            )}
+                            {columns.filter(col => !showColumnPanel || visibleColumns.has(col)).map((col) => (
+                              <TableCell key={col} className={cn("px-4 py-3", expandedColumns.has(col) ? "max-w-none" : "max-w-48")}>
+                                <div className={expandedColumns.has(col) ? "" : "truncate"}>
+                                  {renderCellValue(row[col], rowIndex, col)}
+                                </div>
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Rename Column Dialog */}
+      {renameDialog.isOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-96">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Edit3 className="h-5 w-5" />
+                Rename Column
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">
+                  Original Name
+                </label>
+                <div className="mt-1 p-2 bg-muted rounded text-sm font-mono">
+                  {renameDialog.column}
                 </div>
-              )}
-            </div>
-          )
-        })}
-      </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium">
+                  New Name
+                </label>
+                <Input
+                  value={renameDialog.newName}
+                  onChange={(e) => setRenameDialog(prev => ({ ...prev, newName: e.target.value }))}
+                  placeholder="Enter new column name"
+                  className="mt-1"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleRenameColumn()
+                    } else if (e.key === 'Escape') {
+                      closeRenameDialog()
+                    }
+                  }}
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={closeRenameDialog}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => resetColumnName(renameDialog.column)}
+                  disabled={!renamedColumns[renameDialog.column]}
+                >
+                  Reset
+                </Button>
+                <Button
+                  onClick={handleRenameColumn}
+                  disabled={!renameDialog.newName.trim() || renameDialog.newName === renameDialog.column}
+                >
+                  Rename
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
     </div>
   )
