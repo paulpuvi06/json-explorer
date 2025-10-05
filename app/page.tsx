@@ -11,14 +11,14 @@ import { JsonTableViewer } from "@/components/json-table-viewer"
 import { JsonTreeViewer } from "@/components/json-tree-viewer"
 import { FileUpload } from "@/components/file-upload"
 import { UrlFetch } from "@/components/url-fetch"
-import { CheckCircle, AlertCircle, FileText, Upload, Code, Table, Shield, Zap, Filter, Download, Search, BarChart3, Copy, RotateCcw, RotateCw, Moon, Sun } from "lucide-react"
-import { ThemeToggle } from "@/components/theme-toggle"
+import { CheckCircle, AlertCircle, FileText, Upload, Code, Table, Shield, Zap, Filter, Download, Search, BarChart3, Copy, RotateCcw, RotateCw, Check, TreePine } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { Tooltip } from "@/components/ui/tooltip"
 
 export default function JsonExplorerApp() {
   const [jsonInput, setJsonInput] = useState("")
   const [parsedJson, setParsedJson] = useState<any>(null)
+  const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isValid, setIsValid] = useState<boolean | null>(null)
   const [dataKey, setDataKey] = useState(0)
@@ -477,51 +477,37 @@ export default function JsonExplorerApp() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <div className="fixed top-4 right-4 z-50">
-        <Tooltip content="Toggle light/dark mode">
-          <ThemeToggle />
-        </Tooltip>
-      </div>
       <div className="container mx-auto px-4 py-8 max-w-7xl flex-1">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-2 text-balance">JSON Explorer</h1>
-          <p className="text-muted-foreground text-base sm:text-lg text-pretty mb-6">
-            Parse, explore, filter, and analyze JSON data with advanced table views.<br />
-            Transform complex data into actionable insights and export results.
+          <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-3 text-balance flex items-center justify-center gap-3">
+            <FileText className="h-8 w-8 sm:h-10 sm:w-10 text-primary" />
+            JSON Explorer
+          </h1>
+          <p className="text-muted-foreground text-lg sm:text-xl text-pretty mb-8 max-w-3xl mx-auto">
+            The simple way to explore and analyze JSON data
           </p>
           
-          {/* Feature highlights */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 max-w-4xl mx-auto">
-            <div className="flex flex-col items-center gap-2 p-3 bg-muted/30 rounded-lg">
-              <Filter className="h-5 w-5 text-primary" />
-              <span className="text-sm font-medium">Smart Filtering</span>
+          {/* Key Benefits */}
+          <div className="flex flex-wrap justify-center gap-6 mb-8 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-primary" />
+              <span>Instant Results</span>
             </div>
-            <div className="flex flex-col items-center gap-2 p-3 bg-muted/30 rounded-lg">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              <span className="text-sm font-medium">Data Grouping</span>
+            <div className="flex items-center gap-2">
+              <Table className="h-4 w-4 text-primary" />
+              <span>Table View</span>
             </div>
-            <div className="flex flex-col items-center gap-2 p-3 bg-muted/30 rounded-lg">
-              <Download className="h-5 w-5 text-primary" />
-              <span className="text-sm font-medium">Export Options</span>
+            <div className="flex items-center gap-2">
+              <TreePine className="h-4 w-4 text-primary" />
+              <span>Tree View</span>
             </div>
-            <div className="flex flex-col items-center gap-2 p-3 bg-muted/30 rounded-lg">
-              <Shield className="h-5 w-5 text-primary" />
-              <span className="text-sm font-medium">Privacy First</span>
+            <div className="flex items-center gap-2">
+              <Download className="h-4 w-4 text-primary" />
+              <span>Export Ready</span>
             </div>
           </div>
 
-          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground mb-4">
-            <Shield className="h-4 w-4" />
-            <span>All data processed locally • No server storage</span>
-          </div>
-          
-          <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3 max-w-2xl mx-auto">
-            <p>
-              <strong>Pro Tip:</strong> Flat JSON structures work better with <strong>Table View</strong> for filtering and analysis. 
-              Complex nested structures will automatically enable <strong>Tree View only</strong> for better visualization.
-            </p>
-          </div>
         </div>
 
         <div className="space-y-6">
@@ -534,9 +520,9 @@ export default function JsonExplorerApp() {
                     <div className="p-2 bg-primary/10 rounded-lg">
                       <Code className="h-5 w-5 text-primary" />
                     </div>
-                    JSON Data Source
+                    JSON Data
                   </CardTitle>
-                  <CardDescription className="text-base mt-1">Paste your JSON data, upload a file, or fetch from URL</CardDescription>
+                  <CardDescription className="text-base mt-1">Paste, upload, or fetch your JSON data</CardDescription>
                 </div>
                 <Button 
                   onClick={loadSampleJson} 
@@ -545,7 +531,7 @@ export default function JsonExplorerApp() {
                   className="flex items-center gap-2 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all duration-200 border-muted/50"
                 >
                   <FileText className="h-4 w-4" />
-                  <span className="hidden sm:inline">Load Sample Data</span>
+                  <span className="hidden sm:inline">Load Sample</span>
                   <span className="sm:hidden">Sample</span>
                 </Button>
               </div>
@@ -558,21 +544,21 @@ export default function JsonExplorerApp() {
                     className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-200 hover:bg-background/50"
                   >
                     <FileText className="h-4 w-4" />
-                    Text Input
+                    Paste JSON
                   </TabsTrigger>
                   <TabsTrigger
                     value="file"
                     className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-200 hover:bg-background/50"
                   >
                     <Upload className="h-4 w-4" />
-                    File Upload
+                    Upload File
                   </TabsTrigger>
                   <TabsTrigger
                     value="url"
                     className="flex items-center gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-200 hover:bg-background/50"
                   >
                     <Download className="h-4 w-4" />
-                    From URL
+                    Fetch URL
                   </TabsTrigger>
                 </TabsList>
 
@@ -596,29 +582,73 @@ export default function JsonExplorerApp() {
                         target.style.height = Math.max(200, Math.min(target.scrollHeight, window.innerHeight * 0.6)) + 'px';
                       }}
                     />
+                    {/* Scroll to Data Icon */}
+                    {jsonInput.length > 2000 && (
+                      <button
+                        className="absolute top-3 right-3 z-20 w-8 h-8 bg-blue-500/90 backdrop-blur-sm border border-blue-400/50 hover:bg-blue-600 hover:border-blue-500 transition-all duration-200 rounded-full flex items-center justify-center shadow-sm hover:shadow-md"
+                        onClick={(e) => {
+                          const button = e.currentTarget
+                          // Add click effect
+                          button.style.transform = 'scale(0.9)'
+                          setTimeout(() => {
+                            if (button && button.parentNode) {
+                              button.style.transform = 'scale(1)'
+                            }
+                          }, 150)
+                          
+                          const el = document.getElementById('data-analysis-section')
+                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        }}
+                        title="Scroll to Data Analysis"
+                      >
+                        <svg className="h-4 w-4 text-white animate-pulse" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                    )}
+                    
+                    {/* Copy Button */}
+                    {jsonInput.length > 0 && (
+                      <button
+                        className={`absolute top-3 right-12 z-20 w-8 h-8 backdrop-blur-sm border transition-all duration-200 rounded-full flex items-center justify-center shadow-sm hover:shadow-md ${
+                          copied 
+                            ? 'bg-green-500/90 border-green-400/50 hover:bg-green-600 hover:border-green-500' 
+                            : 'bg-background/90 border-muted/50 hover:border-primary/50 hover:bg-primary/5'
+                        }`}
+                        onClick={async (e) => {
+                          const button = e.currentTarget
+                          // Add click effect
+                          button.style.transform = 'scale(0.9)'
+                          setTimeout(() => {
+                            if (button && button.parentNode) {
+                              button.style.transform = 'scale(1)'
+                            }
+                          }, 150)
+                          
+                          try {
+                            await navigator.clipboard.writeText(jsonInput)
+                            setCopied(true)
+                            setTimeout(() => setCopied(false), 2000)
+                          } catch (err) {
+                            console.error('Failed to copy:', err)
+                          }
+                        }}
+                        title={copied ? "Copied!" : "Copy JSON to clipboard"}
+                      >
+                        {copied ? (
+                          <Check className="h-4 w-4 text-white" />
+                        ) : (
+                          <Copy className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" />
+                        )}
+                      </button>
+                    )}
+                    
                     <div className="absolute bottom-3 right-3 flex items-center gap-2 text-xs text-muted-foreground bg-background/90 backdrop-blur-sm px-3 py-1.5 rounded-full border border-muted/30 shadow-sm">
                       <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                       <span className="font-medium">{jsonInput.length} chars</span>
                       <span className="text-muted-foreground/60">•</span>
                       <span className="font-medium">{jsonInput.split('\n').length} lines</span>
                     </div>
-                    {jsonInput.length > 2000 && (
-                      <Button
-                        size="sm"
-                        variant="default"
-                        className="absolute top-3 right-3 z-20 animate-bounce bg-gradient-to-r from-primary to-primary/80 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2 border-0"
-                        style={{ animation: 'bounce 1.2s infinite' }}
-                        onClick={() => {
-                          const el = document.getElementById('data-analysis-section')
-                          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                        }}
-                        title="Scroll to Data Analysis"
-                      >
-                        <span className="hidden sm:inline font-medium">Scroll to Data</span>
-                        <span className="sm:hidden font-medium">↓</span>
-                        <svg className="h-4 w-4 animate-pulse" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
-                      </Button>
-                    )}
                   </div>
                 </TabsContent>
 
@@ -771,10 +801,10 @@ export default function JsonExplorerApp() {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
                     <CardTitle className="flex items-center gap-2">
-                      <Table className="h-5 w-5" />
+                      <BarChart3 className="h-5 w-5" />
                       Data Analysis
                     </CardTitle>
-                    <CardDescription>Analyze your data with filtering, grouping, and export options</CardDescription>
+                    <CardDescription>Explore, filter, and export your data with powerful tools</CardDescription>
                   </div>
                   {viewMode === "table" ? (
                     <JsonTableViewer key={dataKey} data={transformedData || parsedJson} showStatsOnly={true} />
@@ -804,21 +834,12 @@ export default function JsonExplorerApp() {
                       Tree View
                       {!isFlatJson && (
                         <Badge variant="default" className="text-xs h-4 px-1 bg-green-600">
-                          Recommended
+                          Active
                         </Badge>
                       )}
                     </TabsTrigger>
                   </TabsList>
                   
-                  {!isFlatJson && viewMode === "table" && (
-                    <Alert className="mb-4">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>
-                        Table view is optimized for flat JSON structures. Your data contains nested objects/arrays. 
-                        <strong> Tree view is recommended</strong> for better visualization of complex data structures.
-                      </AlertDescription>
-                    </Alert>
-                  )}
                   
                   <TabsContent value="table">
                     {isFlatJson ? (
@@ -901,3 +922,4 @@ export default function JsonExplorerApp() {
     </div>
   )
 }
+

@@ -9,7 +9,7 @@ import "./globals.css"
 
 export const metadata: Metadata = {
   title: "JSON Explorer",
-  description: "Parse, explore, analyze, and export JSON configuration data with advanced table views",
+  description: "The simple way to explore and analyze JSON data with table and tree views",
   generator: "json-explorer",
   icons: {
     icon: [
@@ -28,7 +28,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ThemeProvider attribute="class" defaultTheme="moderate" enableSystem={false}>
           <Suspense fallback={<div className="flex flex-col items-center justify-center min-h-screen gap-4"><Spinner className="h-8 w-8 text-primary" /><span className="text-muted-foreground">Loading...</span></div>}>
             {children}
           </Suspense>

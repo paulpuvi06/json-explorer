@@ -37,6 +37,41 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+.moderate {
+  --background: #f8fafc;
+  --foreground: #334155;
+  --card: #ffffff;
+  --card-foreground: #334155;
+  --popover: #ffffff;
+  --popover-foreground: #334155;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #334155;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #f1f5f9;
+  --accent-foreground: #334155;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #3b82f6;
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: #f8fafc;
+  --sidebar-foreground: #334155;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f5f9;
+  --sidebar-accent-foreground: #334155;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #3b82f6;
+}
+
 .dark {
   --background: #23272f;
   --foreground: #f3f4f6;
@@ -138,6 +173,11 @@
     transition: background-color 0.15s ease;
   }
 
+  .moderate .table-row-hover:hover {
+    background-color: #e2e8f0;
+    transition: background-color 0.15s ease;
+  }
+
   .dark .table-row-hover:hover {
     background-color: #1e293b;
     transition: background-color 0.15s ease;
@@ -146,6 +186,10 @@
   /* Better hover states for table cells */
   .table-row-hover:hover td {
     color: #0f172a;
+  }
+
+  .moderate .table-row-hover:hover td {
+    color: #1e293b;
   }
 
   .dark .table-row-hover:hover td {
@@ -162,6 +206,10 @@
   .table-row-hover:hover a {
     color: #1d4ed8 !important;
     text-decoration: underline;
+  }
+
+  .moderate .table-row-hover:hover a {
+    color: #2563eb !important;
   }
 
   .dark .table-row-hover:hover a {
@@ -183,6 +231,10 @@
     border-radius: 3px;
   }
 
+  .moderate .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #94a3b8;
+  }
+
   .dark .custom-scrollbar::-webkit-scrollbar-thumb {
     background: #4b5563;
   }
@@ -196,6 +248,10 @@
 
   .draggable-header:hover {
     background-color: #f8fafc;
+  }
+
+  .moderate .draggable-header:hover {
+    background-color: #e2e8f0;
   }
 
   .dark .draggable-header:hover {

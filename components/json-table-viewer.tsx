@@ -40,7 +40,7 @@ interface JsonTableViewerProps {
 interface FilterState {
   column: string
   value: string
-  type: "contains" | "exact" | "regex"
+  type: "contains" | "exact" | "select"
   searchOperator?: "contains" | "not_contains" | "matches" | "not_matches" | "equals" | "not_equals"
 }
 
@@ -80,25 +80,28 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set())
   const [showColumnPanel, setShowColumnPanel] = useState<boolean>(false)
   const [collapsedPanels, setCollapsedPanels] = useState<Set<string>>(new Set())
+  const [columnsInitialized, setColumnsInitialized] = useState<boolean>(false)
 
   useEffect(() => {
     setGroupBy("none")
     setExpandedGroups({})
-    setFilters([])
+    // Don't reset filters - they should persist unless explicitly cleared
     setFilterLogic({ operator: "AND" })
     setCopied(null)
     setExcludedFields(new Set())
     setShowExportOptions(false)
-    setColumnOrder([])
+    // Don't reset column order - preserve user's column arrangement
     setSortState(null)
     setExpandedColumns(new Set())
-          // Reset toggle states to defaults
-          setEnableGrouping(false)
-          setEnableAdvancedFilters(false)
+    // Reset toggle states to defaults
+    setEnableGrouping(false)
+    setEnableAdvancedFilters(false)
     setShowGroupingPanel(true)
     setShowFilteringPanel(true)
+    // Only reset visible columns when data actually changes (not on column reorder)
     setVisibleColumns(new Set())
     setShowColumnPanel(false)
+    setColumnsInitialized(false)
   }, [data])
 
   const tableData = useMemo(() => {
@@ -138,6 +141,11 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
     return Array.from(allKeys)
   }, [tableData])
 
+  // Clear filters only when data structure changes (new columns added/removed)
+  useEffect(() => {
+    setFilters([])
+  }, [baseColumns])
+
   const columns = useMemo(() => {
     if (columnOrder.length === 0) {
       setColumnOrder(baseColumns)
@@ -163,18 +171,13 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
     }
   }, [enableGrouping])
 
+  // Initialize visible columns when data changes (only if not already set)
   useEffect(() => {
-    if (!showColumnPanel) {
+    if (data && columns.length > 0 && !columnsInitialized) {
       setVisibleColumns(new Set(columns))
+      setColumnsInitialized(true)
     }
-  }, [showColumnPanel, columns])
-
-  // Initialize visible columns when data changes
-  useEffect(() => {
-    if (data && columns.length > 0) {
-      setVisibleColumns(new Set(columns))
-    }
-  }, [data, columns])
+  }, [data, columns, columnsInitialized])
 
   const columnValues = useMemo(() => {
     const values: Record<string, Set<string>> = {}
@@ -223,19 +226,14 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
           } else {
             return cellString.includes(filterValue)
           }
-        } else if (filter.type === "regex") {
-          // Handle regex matching
-          try {
-            const regex = new RegExp(filterValue, 'i')
-            const operator = filter.searchOperator || "matches"
-            
-            if (operator === "not_matches") {
-              return !regex.test(cellString)
-            } else {
-              return regex.test(cellString)
-            }
-          } catch {
-            return false
+        } else if (filter.type === "select") {
+          // Handle select matching - exact match for dropdown values
+          const operator = filter.searchOperator || "equals"
+          
+          if (operator === "not_equals") {
+            return cellString !== filterValue
+          } else {
+            return cellString === filterValue
           }
         } else if (filter.type === "exact") {
           // Handle exact matching
@@ -625,6 +623,17 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
     )
   }
 
+  const getUniqueValuesForColumn = (column: string): string[] => {
+    const values = new Set<string>()
+    tableData.forEach((row) => {
+      const value = row[column]
+      if (value !== null && value !== undefined) {
+        values.add(String(value))
+      }
+    })
+    return Array.from(values).sort()
+  }
+
   const addFilter = () => {
     if (columns.length > 0) {
       setFilters((prev) => [...prev, { column: columns[0], value: "", type: "contains" }])
@@ -804,47 +813,51 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
         {/* Enhanced Export */}
         <div className="flex items-center gap-3">
           <div className="relative">
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setShowExportOptions(!showExportOptions)}
-              className="w-28 h-8 bg-gray-200 text-gray-800 border border-gray-300 rounded-md hover:bg-gray-300 transition-colors flex items-center justify-center gap-1.5"
+              className="h-8 px-3 bg-background/90 backdrop-blur-sm border-muted/50 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
             >
-              <FileSpreadsheet className="h-3 w-3 text-gray-600" />
-              <span className="text-xs font-medium">Export</span>
-              <ChevronDown className="h-3 w-3 text-gray-600" />
-            </button>
+              <FileSpreadsheet className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">Export</span>
+              <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform duration-200", showExportOptions && "rotate-180")} />
+            </Button>
             
             {showExportOptions && (
-              <div className="absolute top-full left-0 mt-1 w-28 bg-white border border-gray-300 rounded-md shadow-lg z-50">
-                <button
-                  onClick={() => {
-                    exportToCSV()
-                    setShowExportOptions(false)
-                  }}
-                  className="w-full px-3 py-2 text-left hover:bg-gray-100 flex items-center gap-2 text-sm"
-                >
-                  <FileSpreadsheet className="h-3 w-3 text-green-600" />
-                  <span>CSV</span>
-                </button>
-                <button
-                  onClick={() => {
-                    exportToTSV()
-                    setShowExportOptions(false)
-                  }}
-                  className="w-full px-3 py-2 text-left hover:bg-gray-100 flex items-center gap-2 text-sm"
-                >
-                  <FileText className="h-3 w-3 text-blue-600" />
-                  <span>TSV</span>
-                </button>
-                <button
-                  onClick={() => {
-                    exportToJSON()
-                    setShowExportOptions(false)
-                  }}
-                  className="w-full px-3 py-2 text-left hover:bg-gray-100 flex items-center gap-2 text-sm"
-                >
-                  <FileCode className="h-3 w-3 text-purple-600" />
-                  <span>JSON</span>
-                </button>
+              <div className="absolute top-full left-0 mt-2 w-32 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-xl z-50 overflow-hidden">
+                <div className="p-1">
+                  <button
+                    onClick={() => {
+                      exportToCSV()
+                      setShowExportOptions(false)
+                    }}
+                    className="w-full px-3 py-2 text-left hover:bg-muted/50 rounded-md flex items-center gap-2 text-sm transition-colors duration-150"
+                  >
+                    <FileSpreadsheet className="h-4 w-4 text-green-600" />
+                    <span className="font-medium">CSV</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      exportToTSV()
+                      setShowExportOptions(false)
+                    }}
+                    className="w-full px-3 py-2 text-left hover:bg-muted/50 rounded-md flex items-center gap-2 text-sm transition-colors duration-150"
+                  >
+                    <FileText className="h-4 w-4 text-blue-600" />
+                    <span className="font-medium">TSV</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      exportToJSON()
+                      setShowExportOptions(false)
+                    }}
+                    className="w-full px-3 py-2 text-left hover:bg-muted/50 rounded-md flex items-center gap-2 text-sm transition-colors duration-150"
+                  >
+                    <FileCode className="h-4 w-4 text-purple-600" />
+                    <span className="font-medium">JSON</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -1022,7 +1035,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
 
                       <Select
                         value={filter.type}
-                        onValueChange={(value: "contains" | "exact" | "regex") => updateFilter(index, "type", value)}
+                        onValueChange={(value: "contains" | "exact" | "select") => updateFilter(index, "type", value)}
                       >
                         <SelectTrigger className="w-32 h-9">
                           <SelectValue />
@@ -1030,7 +1043,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
                         <SelectContent>
                           <SelectItem value="contains">Search</SelectItem>
                           <SelectItem value="exact">Exact</SelectItem>
-                          <SelectItem value="regex">Regex</SelectItem>
+                          <SelectItem value="select">Select</SelectItem>
                         </SelectContent>
                       </Select>
 
@@ -1061,32 +1074,50 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
                               <SelectItem value="not_equals">Not Equals</SelectItem>
                             </SelectContent>
                           </Select>
-                        ) : (
+                        ) : filter.type === "select" ? (
                           <Select
-                            value={filter.searchOperator || "matches"}
-                            onValueChange={(value: "matches" | "not_matches") => updateFilter(index, "searchOperator", value)}
+                            value={filter.searchOperator || "equals"}
+                            onValueChange={(value: "equals" | "not_equals") => updateFilter(index, "searchOperator", value)}
                           >
                             <SelectTrigger className="w-32 h-9">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="matches">Matches</SelectItem>
-                              <SelectItem value="not_matches">Not Matches</SelectItem>
+                              <SelectItem value="equals">Equals</SelectItem>
+                              <SelectItem value="not_equals">Not Equals</SelectItem>
                             </SelectContent>
                           </Select>
-                        )}
+                        ) : null}
 
-                        <input
-                          type="text"
-                          value={filter.value}
-                          onChange={(e) => updateFilter(index, "value", e.target.value)}
-                          placeholder={
-                            filter.type === "contains" ? "Search for text..." :
-                            filter.type === "exact" ? "Enter exact value..." :
-                            "Enter regex pattern..."
-                          }
-                          className="flex-1 h-9 px-3 text-sm bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                        />
+                        {filter.type === "select" ? (
+                          <Select
+                            value={filter.value}
+                            onValueChange={(value) => updateFilter(index, "value", value)}
+                          >
+                            <SelectTrigger className="flex-1 h-9">
+                              <SelectValue placeholder="Select value..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {getUniqueValuesForColumn(filter.column).map((value) => (
+                                <SelectItem key={value} value={value}>
+                                  {value}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <input
+                            type="text"
+                            value={filter.value}
+                            onChange={(e) => updateFilter(index, "value", e.target.value)}
+                            placeholder={
+                              filter.type === "contains" ? "Search for text..." :
+                              filter.type === "exact" ? "Enter exact value..." :
+                              "Enter value..."
+                            }
+                            className="flex-1 h-9 px-3 text-sm bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                          />
+                        )}
                       </div>
 
                       <Button
@@ -1269,7 +1300,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
                               className={cn(
                                 "px-4 py-3 font-medium cursor-pointer hover:bg-muted/50",
                                 draggedColumn === col && "dragging opacity-50",
-                                expandedColumns.has(col) ? "min-w-80 max-w-none" : "min-w-40 max-w-64"
+                                expandedColumns.has(col) ? "min-w-80 max-w-none" : "min-w-48 max-w-96"
                               )}
                               draggable
                               onDragStart={(e) => handleDragStart(e, col)}
@@ -1339,7 +1370,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
                               </TableCell>
                             )}
                             {columns.filter(col => !showColumnPanel || visibleColumns.has(col)).map((col) => (
-                              <TableCell key={col} className={cn("px-4 py-3", expandedColumns.has(col) ? "max-w-none" : "max-w-48")}>
+                              <TableCell key={col} className={cn("px-4 py-3", expandedColumns.has(col) ? "max-w-none" : "max-w-96")}>
                                 <div className={expandedColumns.has(col) ? "" : "truncate"}>
                                   {renderCellValue(row[col], rowIndex, col)}
                                 </div>

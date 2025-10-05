@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Download, AlertCircle, CheckCircle, ExternalLink, Plus, X, Settings, Eye, EyeOff } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Download, AlertCircle, CheckCircle, ExternalLink, Plus, X, Settings, Eye, EyeOff, List } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface UrlFetchProps {
@@ -42,53 +43,13 @@ const COMMON_HEADERS = [
   { key: "If-Modified-Since", value: "", placeholder: "Wed, 21 Oct 2015 07:28:00 GMT" }
 ]
 
-const API_SERVICES = [
-  {
-    id: "github",
-    name: "GitHub REST API",
-    headers: [
-      { key: "Authorization", value: "Bearer YOUR_GITHUB_TOKEN" },
-      { key: "Accept", value: "application/vnd.github.v3+json" },
-      { key: "User-Agent", value: "JSON-Explorer/1.0" }
-    ],
-    description: "GitHub API with personal access token"
-  },
-  {
-    id: "azure-devops",
-    name: "Azure DevOps",
-    headers: [
-      { key: "Authorization", value: "Basic YOUR_AZURE_TOKEN" },
-      { key: "Content-Type", value: "application/json" },
-      { key: "Accept", value: "application/json" }
-    ],
-    description: "Azure DevOps REST API"
-  },
-  {
-    id: "stripe",
-    name: "Stripe API",
-    headers: [
-      { key: "Authorization", value: "Bearer YOUR_STRIPE_SECRET_KEY" },
-      { key: "Accept", value: "application/json" }
-    ],
-    description: "Stripe payment API"
-  },
-  {
-    id: "openai",
-    name: "OpenAI API",
-    headers: [
-      { key: "Authorization", value: "Bearer YOUR_OPENAI_API_KEY" },
-      { key: "Content-Type", value: "application/json" }
-    ],
-    description: "OpenAI API for AI models"
-  }
-]
+// API service configurations removed - now using direct links
 
 export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
   const [url, setUrl] = useState("")
   const [fetchStatus, setFetchStatus] = useState<FetchStatus>({ status: "idle" })
   const [headers, setHeaders] = useState<Header[]>([])
   const [enableCustomHeaders, setEnableCustomHeaders] = useState(false)
-  const [selectedService, setSelectedService] = useState<string>("none")
   const [headerVisibility, setHeaderVisibility] = useState<Record<number, boolean>>({})
 
   const isValidUrl = (urlString: string): boolean => {
@@ -100,22 +61,21 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
     }
   }
 
-  const addHeader = () => {
-    setHeaders([...headers, { key: "", value: "" }])
-  }
+  const addHeader = useCallback(() => {
+    setHeaders(prev => [...prev, { key: "", value: "" }])
+  }, [])
 
-  const addCommonHeader = (headerKey: string) => {
+  const addCommonHeader = useCallback((headerKey: string) => {
     const commonHeader = COMMON_HEADERS.find(h => h.key === headerKey)
     if (commonHeader) {
-      setHeaders([...headers, { key: commonHeader.key, value: commonHeader.value }])
+      setHeaders(prev => [...prev, { key: commonHeader.key, value: commonHeader.value }])
     }
-  }
+  }, [])
 
   const clearAll = () => {
     setUrl("")
     setHeaders([])
     setFetchStatus({ status: "idle" })
-    setSelectedService("none")
     setHeaderVisibility({})
   }
 
@@ -126,36 +86,25 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
     }
   }, [clearAllRef])
 
-  const toggleHeaderVisibility = (index: number) => {
+  const toggleHeaderVisibility = useCallback((index: number) => {
     setHeaderVisibility(prev => ({
       ...prev,
       [index]: !prev[index]
     }))
-  }
+  }, [])
 
-  const selectService = (serviceId: string) => {
-    setSelectedService(serviceId)
-    
-    // Update headers based on selected service
-    if (serviceId && serviceId !== "none") {
-      const service = API_SERVICES.find(s => s.id === serviceId)
-      if (service) {
-        setHeaders(service.headers)
-      }
-    } else {
-      setHeaders([])
-    }
-  }
 
-  const removeHeader = (index: number) => {
-    setHeaders(headers.filter((_, i) => i !== index))
-  }
+  const removeHeader = useCallback((index: number) => {
+    setHeaders(prev => prev.filter((_, i) => i !== index))
+  }, [])
 
-  const updateHeader = (index: number, field: "key" | "value", value: string) => {
-    const newHeaders = [...headers]
-    newHeaders[index][field] = value
-    setHeaders(newHeaders)
-  }
+  const updateHeader = useCallback((index: number, field: "key" | "value", value: string) => {
+    setHeaders(prevHeaders => {
+      const newHeaders = [...prevHeaders]
+      newHeaders[index] = { ...newHeaders[index], [field]: value }
+      return newHeaders
+    })
+  }, [])
 
   const getValidHeaders = (): Record<string, string> => {
     const validHeaders: Record<string, string> = {
@@ -202,10 +151,7 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
       try {
         JSON.parse(text)
         onUrlContent(text)
-        setFetchStatus({ 
-          status: "success", 
-          message: `Successfully loaded ${text.length} characters from URL` 
-        })
+        setFetchStatus({ status: "success" })
       } catch (parseError) {
         throw new Error("Response is not valid JSON format")
       }
@@ -245,7 +191,7 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
           <div className="relative flex-1">
             <Input
               type="url"
-              placeholder="https://api.example.com/data.json"
+              placeholder="https://api.github.com/users/octocat"
               value={url}
               onChange={(e) => {
                 setUrl(e.target.value)
@@ -257,9 +203,9 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
               onKeyPress={handleKeyPress}
               className={cn(
                 "font-mono text-sm",
-                fetchStatus.status === "error" && "border-destructive",
-                fetchStatus.status === "success" && "border-green-500"
+                fetchStatus.status === "error" && "border-destructive"
               )}
+              autoComplete="url"
             />
             {url && isValidUrl(url) && (
               <Button
@@ -299,7 +245,7 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Settings className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Custom Headers</span>
+          <span className="text-sm font-medium">Configure Headers</span>
         </div>
         <button
           onClick={() => setEnableCustomHeaders(!enableCustomHeaders)}
@@ -319,9 +265,9 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
       {enableCustomHeaders && (
         <div className="space-y-3">
           <Card className="border border-muted/50">
-            <CardHeader className="pb-3">
+            <CardHeader className="pb-1">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Settings className="h-4 w-4 text-muted-foreground" />
+                <List className="h-4 w-4 text-muted-foreground" />
                 Request Headers
                 {headers.length > 0 && (
                   <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-800 border border-purple-300 rounded-full text-xs font-medium">
@@ -330,43 +276,17 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
                 )}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 p-6">
-              {/* API Service Dropdown */}
-              <div className="space-y-3">
-                <div className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                  <ExternalLink className="h-4 w-4 text-blue-500" />
-                  API Service
-                </div>
-                <Select onValueChange={selectService} value={selectedService}>
-                  <SelectTrigger className="w-full h-12 bg-background border-2 border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200 px-4 py-3 text-sm shadow-sm hover:shadow-md">
-                    <SelectValue placeholder="Select an API service..." />
-                  </SelectTrigger>
-                  <SelectContent className="min-w-[320px]">
-                    <SelectItem value="none" className="py-3 px-4">
-                      <span className="font-medium">None</span>
-                    </SelectItem>
-                    {API_SERVICES.map((service) => (
-                      <SelectItem key={service.id} value={service.id} className="py-3 px-4">
-                        <span className="font-medium text-sm">{service.name}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <CardContent className="space-y-2 p-4">
               {/* Add Header Section */}
-              <div className="space-y-3">
-                <div className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  Add Header
-                </div>
-                <div className="flex gap-3">
+              <div className="space-y-2">
+                <div className="flex gap-3 items-center">
                   <Select onValueChange={addCommonHeader}>
-                    <SelectTrigger className="flex-1 h-12 bg-background border-2 border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200 px-4 py-3 text-sm shadow-sm hover:shadow-md">
-                      <SelectValue placeholder="Select common header..." />
+                    <SelectTrigger className="flex-1 h-9 bg-background border-2 border-gray-200 hover:border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all duration-200 px-3 py-2 text-sm shadow-sm hover:shadow-md">
+                      <SelectValue placeholder="Add common header..." />
                     </SelectTrigger>
-                    <SelectContent className="min-w-[320px]">
+                    <SelectContent className="min-w-[320px] max-h-[300px] overflow-y-auto">
                       {COMMON_HEADERS.map((header) => (
-                        <SelectItem key={header.key} value={header.key} className="py-3 px-4">
+                        <SelectItem key={header.key} value={header.key} className="py-2 px-3">
                           <span className="font-medium text-sm">{header.key}</span>
                         </SelectItem>
                       ))}
@@ -374,9 +294,9 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
                   </Select>
                   <button
                     onClick={addHeader}
-                    className="w-9 h-9 bg-blue-50 border-2 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow-md rounded-md flex items-center justify-center"
+                    className="w-9 h-9 bg-blue-50 border-2 border-blue-200 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-all duration-200 shadow-sm hover:shadow-md rounded-md flex items-center justify-center group"
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-4 w-4 group-hover:scale-110 transition-transform" />
                   </button>
                 </div>
               </div>
@@ -384,9 +304,15 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
               {/* Headers List */}
               {headers.length > 0 && (
                 <div className="space-y-3">
-                  <div className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                    <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                    Active Headers
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                      <span className="text-lg font-bold text-gray-800">Active Headers</span>
+                    </div>
+                    <div className="flex-1 h-px bg-gradient-to-r from-gray-200 to-transparent"></div>
+                    <Badge variant="secondary" className="text-xs">
+                      {headers.length} header{headers.length !== 1 ? 's' : ''}
+                    </Badge>
                   </div>
                   {headers.map((header, index) => {
                     const commonHeader = COMMON_HEADERS.find(h => h.key === header.key)
@@ -397,42 +323,64 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
                                       header.key.toLowerCase().includes('authorization')
                     const isVisible = headerVisibility[index] || false
                     return (
-                      <div key={index} className="flex gap-3 items-center p-3 bg-gray-50/50 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors">
-                        <Input
-                          placeholder="Header name"
-                          value={header.key}
-                          onChange={(e) => updateHeader(index, "key", e.target.value)}
-                          className="font-mono text-sm w-40 flex-shrink-0 h-10 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                        />
-                        <div className="relative flex-1">
-                          <Input
-                            placeholder={commonHeader?.placeholder || "Header value"}
-                            value={header.value}
-                            onChange={(e) => updateHeader(index, "value", e.target.value)}
-                            className="font-mono text-sm pr-8 h-10 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                            type={isSensitive && !isVisible ? 'password' : 'text'}
-                          />
-                          {isSensitive && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleHeaderVisibility(index)}
-                              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
-                            >
-                              {isVisible ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                            </Button>
-                          )}
+                      <form key={index} className="group relative bg-gray-50 border border-gray-200 rounded-lg p-4 hover:bg-gray-100 transition-all duration-200 shadow-sm hover:shadow-md">
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 grid grid-cols-2 gap-3">
+                            <div>
+                              <label htmlFor={`header-key-${index}`} className="text-xs font-medium text-gray-600 mb-1 block">Header Name</label>
+                              <Input
+                                id={`header-key-${index}`}
+                                name={`header-key-${index}`}
+                                placeholder="Header name"
+                                value={header.key}
+                                onChange={(e) => updateHeader(index, "key", e.target.value)}
+                                className="font-mono text-sm h-10 border-gray-300 focus:border-blue-500 focus:ring-blue-100"
+                                autoComplete="off"
+                              />
+                            </div>
+                            <div>
+                              <label htmlFor={`header-value-${index}`} className="text-xs font-medium text-gray-600 mb-1 block">Value</label>
+                              <div className="relative">
+                                <Input
+                                  id={`header-value-${index}`}
+                                  name={`header-value-${index}`}
+                                  placeholder={commonHeader?.placeholder || "Header value"}
+                                  value={header.value}
+                                  onChange={(e) => updateHeader(index, "value", e.target.value)}
+                                  className="font-mono text-sm pr-10 h-10 border-gray-300 focus:border-blue-500 focus:ring-blue-100"
+                                  type={isSensitive && !isVisible ? 'password' : 'text'}
+                                  autoComplete={isSensitive ? "current-password" : "off"}
+                                />
+                                {isSensitive && (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => toggleHeaderVisibility(index)}
+                                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 p-0 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded"
+                                  >
+                                    {isVisible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeHeader(index)}
+                            className="h-10 w-10 p-0 text-gray-500 hover:text-red-600 hover:bg-red-50 flex-shrink-0 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeHeader(index)}
-                          className="h-10 w-10 p-0 text-gray-500 hover:text-red-600 hover:bg-red-50 flex-shrink-0 rounded"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
+                        {commonHeader && (
+                          <div className="mt-3 text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded border border-blue-200">
+                            💡 <span className="font-medium">{commonHeader.key}:</span> {commonHeader.placeholder}
+                          </div>
+                        )}
+                      </form>
                     )
                   })}
                 </div>
@@ -443,14 +391,6 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
         </div>
       )}
 
-      {fetchStatus.status === "success" && (
-        <Alert className="border-green-200 bg-green-50">
-          <CheckCircle className="h-4 w-4 text-green-600" />
-          <AlertDescription className="text-green-800">
-            {fetchStatus.message}
-          </AlertDescription>
-        </Alert>
-      )}
 
       {fetchStatus.status === "error" && (
         <Alert variant="destructive">
@@ -461,34 +401,6 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
         </Alert>
       )}
 
-      <div className="text-xs text-muted-foreground">
-        <p className="font-medium mb-3">🛠️ Try Public APIs:</p>
-        <div className="space-y-2 ml-4">
-          <div className="space-y-1">
-            <button
-              onClick={() => {
-                setUrl("https://api.github.com/users/octocat")
-                setFetchStatus({ status: "idle" })
-              }}
-              className="block text-blue-500 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 hover:underline transition-colors text-xs"
-            >
-              GitHub Public User: https://api.github.com/users/octocat
-            </button>
-          </div>
-          
-          <div className="space-y-1">
-            <button
-              onClick={() => {
-                setUrl("https://jsonplaceholder.typicode.com/posts")
-                setFetchStatus({ status: "idle" })
-              }}
-              className="block text-blue-500 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200 hover:underline transition-colors text-xs"
-            >
-              JSONPlaceholder: https://jsonplaceholder.typicode.com/posts
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useMemo, useEffect, useRef } from "react"
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react"
 import { ChevronRight, ChevronDown, Copy, Check, FileText, Folder, FolderOpen, Trash2, RotateCcw, RotateCw, Zap, Table, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -68,7 +68,8 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
       if (Array.isArray(obj)) {
         const children: TreeNode[] = []
         obj.forEach((item, index) => {
-          const childNodes = buildTree(item, `${path}[${index}]`, level + 1)
+          const itemPath = path ? `${path}[${index}]` : `[${index}]`
+          const childNodes = buildTree(item, itemPath, level + 1)
           children.push(...childNodes)
         })
         
@@ -114,7 +115,7 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
     return buildTree(currentData)
   }, [currentData, expandedNodes])
 
-  const toggleNode = (path: string) => {
+  const toggleNode = useCallback((path: string) => {
     setExpandedNodes(prev => {
       const newSet = new Set(prev)
       if (newSet.has(path)) {
@@ -124,9 +125,9 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
       }
       return newSet
     })
-  }
+  }, [])
 
-  const expandAll = () => {
+  const expandAll = useCallback(() => {
     const allPaths = new Set<string>()
     const collectPaths = (nodes: TreeNode[]) => {
       nodes.forEach(node => {
@@ -138,11 +139,11 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
     }
     collectPaths(treeData)
     setExpandedNodes(allPaths)
-  }
+  }, [treeData])
 
-  const collapseAll = () => {
+  const collapseAll = useCallback(() => {
     setExpandedNodes(new Set())
-  }
+  }, [])
 
   const copyToClipboard = async (value: any, path: string) => {
     try {
@@ -154,9 +155,9 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
     }
   }
 
-  const selectNode = (node: TreeNode) => {
+  const selectNode = useCallback((node: TreeNode) => {
     setSelectedNode(node)
-  }
+  }, [])
 
   // Transformation functions
   const applyTransformation = (newData: any) => {
@@ -175,6 +176,15 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
     
     // Helper function to navigate to parent and remove item
     const removeFromPath = (obj: any, pathStr: string) => {
+      // Handle root-level array indices (e.g., "[0]", "[1]")
+      if (pathStr.startsWith('[') && pathStr.endsWith(']')) {
+        const index = parseInt(pathStr.slice(1, -1))
+        if (Array.isArray(obj) && index >= 0 && index < obj.length) {
+          obj.splice(index, 1)
+        }
+        return
+      }
+      
       // Handle array indices in path (e.g., "data[0]", "data[0].items[1]")
       const pathParts = pathStr.split('.')
       let current = obj
@@ -200,7 +210,9 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
         // Remove array item
         const [key, indexStr] = lastPart.split('[')
         const index = parseInt(indexStr.replace(']', ''))
-        current[key].splice(index, 1)
+        if (current[key] && Array.isArray(current[key]) && index >= 0 && index < current[key].length) {
+          current[key].splice(index, 1)
+        }
       } else {
         // Remove object property
         delete current[lastPart]
@@ -231,9 +243,13 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
     }
     
     // Remove items in reverse order to maintain indices
-    indices.sort((a, b) => b - a).forEach(index => {
-      current.splice(index, 1)
-    })
+    if (Array.isArray(current)) {
+      indices.sort((a, b) => b - a).forEach(index => {
+        if (index >= 0 && index < current.length) {
+          current.splice(index, 1)
+        }
+      })
+    }
     
     applyTransformation(newData)
   }
@@ -258,7 +274,9 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
     }
     
     // Clear the array
-    current.length = 0
+    if (Array.isArray(current)) {
+      current.length = 0
+    }
     
     applyTransformation(newData)
   }
@@ -423,6 +441,9 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
         return `Array with ${value.length} items`
       }
       if (type === "object") {
+        if (value === null || value === undefined) {
+          return "null"
+        }
         const keys = Object.keys(value)
         return `Object with ${keys.length} properties`
       }
@@ -442,6 +463,13 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
         }
       }
       if (type === "object") {
+        if (value === null || value === undefined) {
+          return {
+            keyCount: 0,
+            keys: [],
+            hasMore: false
+          }
+        }
         const entries = Object.entries(value)
         return {
           keyCount: entries.length,
@@ -532,12 +560,12 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
                   {node.type === "object" && (
                     <>
                       <div className="text-sm">
-                        <span className="font-medium">Properties:</span> {detailedInfo.keyCount}
+                        <span className="font-medium">Properties:</span> {detailedInfo?.keyCount || 0}
                       </div>
                       <div>
-                        <div className="text-sm font-medium mb-1">First {Math.min(10, detailedInfo.keyCount)} properties:</div>
+                        <div className="text-sm font-medium mb-1">First {Math.min(10, detailedInfo?.keyCount || 0)} properties:</div>
                         <div className="space-y-1">
-                          {detailedInfo.keys.map((item: any) => (
+                          {(detailedInfo?.keys || []).map((item: any) => (
                             <div key={item.key} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-xs lg:text-sm">
                               <div className="flex items-center gap-1 sm:gap-2">
                                 <span className="font-medium text-xs min-w-0 truncate">
@@ -556,9 +584,9 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
                             </div>
                           ))}
                         </div>
-                        {detailedInfo.hasMore && (
+                        {detailedInfo?.hasMore && (
                           <div className="text-xs text-muted-foreground mt-1">
-                            ... and {detailedInfo.keyCount - 10} more properties
+                            ... and {(detailedInfo?.keyCount || 0) - 10} more properties
                           </div>
                         )}
                       </div>
@@ -601,30 +629,104 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
                 )}
               </div>
               
-              {/* Transformation Controls */}
+              {/* Property-Specific Transformations */}
               <div className="space-y-2">
-                <div className="text-xs font-medium text-muted-foreground">Transformations</div>
+                <div className="text-xs font-medium text-muted-foreground">Property Actions</div>
                 <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={flattenData}
-                    className="text-xs"
-                    disabled={node.type !== "object" && node.type !== "array"}
-                  >
-                    <Zap className="h-3 w-3 mr-1" />
-                    Flatten
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={convertArrayToObjects}
-                    className="text-xs"
-                    disabled={node.type !== "array"}
-                  >
-                    <Table className="h-3 w-3 mr-1" />
-                    To Objects
-                  </Button>
+                  {node.type === "array" && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={convertArrayToObjects}
+                        className="text-xs"
+                        title="Convert array items to objects with index"
+                      >
+                        <Table className="h-3 w-3 mr-1" />
+                        To Objects
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const extracted = node.value.map((item: any, index: number) => 
+                            typeof item === 'object' ? item : { value: item, index }
+                          )
+                          applyTransformation(extracted)
+                        }}
+                        className="text-xs"
+                        title="Extract array values into objects"
+                      >
+                        <FileText className="h-3 w-3 mr-1" />
+                        Extract Values
+                      </Button>
+                    </>
+                  )}
+                  {node.type === "object" && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const keys = Object.keys(node.value)
+                          const array = keys.map(key => ({ key, value: node.value[key] }))
+                          applyTransformation(array)
+                        }}
+                        className="text-xs"
+                        title="Convert object to array of key-value pairs"
+                      >
+                        <FileText className="h-3 w-3 mr-1" />
+                        To Array
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const keys = Object.keys(node.value)
+                          applyTransformation(keys)
+                        }}
+                        className="text-xs"
+                        title="Extract only the keys from this object"
+                      >
+                        <Zap className="h-3 w-3 mr-1" />
+                        Extract Keys
+                      </Button>
+                    </>
+                  )}
+                  {node.type === "string" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        try {
+                          const parsed = JSON.parse(node.value)
+                          applyTransformation(parsed)
+                        } catch {
+                          // If not valid JSON, wrap in object
+                          applyTransformation({ value: node.value })
+                        }
+                      }}
+                      className="text-xs col-span-2"
+                      title="Parse string as JSON or wrap in object"
+                    >
+                      <FileText className="h-3 w-3 mr-1" />
+                      Parse JSON
+                    </Button>
+                  )}
+                  {node.type === "number" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        applyTransformation({ value: node.value, type: "number" })
+                      }}
+                      className="text-xs col-span-2"
+                      title="Wrap number in object with metadata"
+                    >
+                      <FileText className="h-3 w-3 mr-1" />
+                      Wrap Value
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
@@ -786,7 +888,7 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
                   )}
                 </CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Navigate and transform your JSON data in a hierarchical tree structure
+                  Navigate your JSON data in a hierarchical tree structure, optional transform for table and extract options
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -817,9 +919,9 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
                 {/* Separator */}
                 <div className="w-px h-6 bg-border mx-1" />
                 
-                {/* Transformation Controls */}
+                {/* Global Transformation Controls */}
                 <div className="flex items-center gap-2 px-2 py-1 bg-muted/30 rounded-md">
-                  <span className="text-xs text-muted-foreground font-medium">Transform:</span>
+                  <span className="text-xs text-muted-foreground font-medium">Global Transform:</span>
                 </div>
                 <Button
                   variant="outline"
@@ -899,14 +1001,14 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
               JSON Tree View
             </CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              Navigate your JSON data in a hierarchical tree structure
+              Navigate your JSON data in a hierarchical tree structure, optional transform for table and extract options
             </p>
             {/* Helpful notes about transformation features */}
             <div className="mt-3 space-y-2">
               <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
                 <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 <AlertDescription className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>💡 Pro Tips:</strong> Use <strong>Flatten</strong> to convert nested objects into table-friendly format, or <strong>To Objects</strong> to convert arrays into individual objects for better analysis.
+                  <strong>💡 Pro Tips:</strong> Use <strong>Global Transform</strong> for dataset-wide changes, or <strong>Property Actions</strong> for specific node transformations. <strong>Flatten</strong> converts nested objects to table-friendly format.
                 </AlertDescription>
               </Alert>
             </div>
