@@ -15,6 +15,7 @@ import { CheckCircle, AlertCircle, FileText, Upload, Code, Table, Shield, Zap, F
 import { Spinner } from "@/components/ui/spinner"
 import { Tooltip } from "@/components/ui/tooltip"
 import { useEnvironment } from '@/lib/use-environment'
+import packageJson from '../package.json'
 
 interface FileHistoryItem {
   id: string
@@ -641,10 +642,9 @@ export default function JsonExplorerApp() {
       <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-7xl flex-1">
         {/* Header */}
         <div className="text-center mb-4 sm:mb-8">
-          <h1 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-2 sm:mb-3 text-balance flex items-center justify-center gap-2 sm:gap-3">
-            <FileText className="h-6 w-6 sm:h-8 sm:w-8 lg:h-10 lg:w-10 text-primary" />
-            <span className="hidden sm:inline">JSON Explorer</span>
-            <span className="sm:hidden">JSON</span>
+          <h1 className="text-xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-2 sm:mb-3 text-balance flex items-center justify-center gap-1 sm:gap-3">
+            <FileText className="h-5 w-5 sm:h-8 sm:w-8 lg:h-10 lg:w-10 text-primary" />
+            <span className="text-xl sm:text-4xl lg:text-5xl">JSON Explorer</span>
           </h1>
           <p className="text-muted-foreground text-sm sm:text-lg lg:text-xl text-pretty mb-4 sm:mb-8 max-w-3xl mx-auto px-4">
             The simple way to explore and analyze JSON data
@@ -700,10 +700,10 @@ export default function JsonExplorerApp() {
             </CardHeader>
             <CardContent className="space-y-4">
               <Tabs defaultValue="text" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 bg-muted/50 p-0.5 sm:p-1 rounded-lg sm:rounded-xl">
+                <TabsList className="grid w-full grid-cols-3 bg-muted/50 p-0.5 sm:p-1 rounded-lg sm:rounded-xl overflow-hidden">
                   <TabsTrigger
                     value="text"
-                    className="flex items-center gap-1 sm:gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-200 hover:bg-background/50 text-xs sm:text-sm px-2 sm:px-3 py-2"
+                    className="flex items-center gap-1 sm:gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-200 hover:bg-background/50 text-xs sm:text-sm px-1 sm:px-3 py-2 truncate"
                   >
                     <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500" />
                     <span className="hidden sm:inline">Paste JSON</span>
@@ -711,7 +711,7 @@ export default function JsonExplorerApp() {
                   </TabsTrigger>
                   <TabsTrigger
                     value="file"
-                    className="flex items-center gap-1 sm:gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-200 hover:bg-background/50 text-xs sm:text-sm px-2 sm:px-3 py-2"
+                    className="flex items-center gap-1 sm:gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-200 hover:bg-background/50 text-xs sm:text-sm px-1 sm:px-3 py-2 truncate"
                   >
                     <Upload className="h-3 w-3 sm:h-4 sm:w-4 text-green-500" />
                     <span className="hidden sm:inline">Upload File</span>
@@ -719,7 +719,7 @@ export default function JsonExplorerApp() {
                   </TabsTrigger>
                   <TabsTrigger
                     value="url"
-                    className="flex items-center gap-1 sm:gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-200 hover:bg-background/50 text-xs sm:text-sm px-2 sm:px-3 py-2"
+                    className="flex items-center gap-1 sm:gap-2 data-[state=active]:bg-background data-[state=active]:shadow-md transition-all duration-200 hover:bg-background/50 text-xs sm:text-sm px-1 sm:px-3 py-2 truncate"
                   >
                     <Download className="h-3 w-3 sm:h-4 sm:w-4 text-purple-500" />
                     <span className="hidden sm:inline">Fetch URL</span>
@@ -826,12 +826,12 @@ export default function JsonExplorerApp() {
                 </TabsContent>
               </Tabs>
 
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <div className="grid grid-cols-2 sm:flex sm:flex-row gap-2 sm:gap-3">
                 <Tooltip content="Parse and analyze JSON (Ctrl+Enter)">
                   <Button 
                     onClick={validateAndParseJson} 
                     disabled={isLoading}
-                    className="flex items-center gap-2 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-200 border-0 w-full sm:w-auto"
+                    className="flex items-center gap-2 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-200 border-0 col-span-2 sm:col-span-1 sm:w-auto"
                   >
                     {isLoading ? (
                       <>
@@ -982,10 +982,10 @@ export default function JsonExplorerApp() {
               </CardHeader>
               <CardContent>
                 <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as "table" | "tree")} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-0.5 sm:p-1 rounded-lg sm:rounded-xl mb-2 sm:mb-4">
+                  <TabsList className="grid w-full grid-cols-2 bg-muted/50 p-0.5 sm:p-1 rounded-lg sm:rounded-xl mb-2 sm:mb-4 overflow-hidden">
                     <TabsTrigger 
                       value="table" 
-                      className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2"
+                      className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-1 sm:px-3 py-2 truncate"
                       disabled={!isFlatJson}
                     >
                       <Table className="h-3 w-3 sm:h-4 sm:w-4" />
@@ -997,7 +997,7 @@ export default function JsonExplorerApp() {
                         </Badge>
                       )}
                     </TabsTrigger>
-                    <TabsTrigger value="tree" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 py-2">
+                    <TabsTrigger value="tree" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-1 sm:px-3 py-2 truncate">
                       <TreePine className="h-3 w-3 sm:h-4 sm:w-4" />
                       <span className="hidden sm:inline">Tree View</span>
                       <span className="sm:hidden">Tree</span>
@@ -1046,20 +1046,21 @@ export default function JsonExplorerApp() {
               <span>© 2025 JSON Explorer</span>
               {showPersonalBranding && (
                 <>
-                  <span>•</span>
-                  <span className="flex items-center gap-1">
-                    <span>Envisioned by</span>
-                    <a 
-                      href="https://www.linkedin.com/in/paulpuvi/" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-primary hover:text-primary/80 transition-colors"
-                    >
-                      <span>Paul</span>
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                    <span>and completed with AI assistance 😉</span>
-                  </span>
+                  <span className="hidden sm:inline">•</span>
+                  <div className="text-center sm:text-left">
+                    <span className="text-xs sm:text-sm">
+                      Envisioned by{' '}
+                      <a 
+                        href="https://www.linkedin.com/in/paulpuvi/" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:text-primary/80 transition-colors font-medium"
+                      >
+                        Paul
+                      </a>
+                      {' '}and completed with AI assistance 😉
+                    </span>
+                  </div>
                 </>
               )}
             </div>
@@ -1394,7 +1395,6 @@ export default function JsonExplorerApp() {
               
               <div className="space-y-4 text-sm">
                 <div>
-                  <h3 className="font-medium text-foreground mb-2">App Information</h3>
                   <div className="space-y-2 text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -1416,9 +1416,8 @@ export default function JsonExplorerApp() {
                 </div>
 
                 <div className="pt-4 border-t border-border">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>Version 1.0.0</span>
-                    <span>© 2025 JSON Explorer</span>
+                  <div className="text-xs text-muted-foreground text-center">
+                    <span>Version {packageJson.version}</span>
                   </div>
                 </div>
               </div>
