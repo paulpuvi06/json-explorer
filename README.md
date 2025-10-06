@@ -5,7 +5,7 @@ A JSON data analyzer and viewer. Parse, explore, filter, and analyze JSON data i
 ## Quick Start
 
 ### Try Online
-**Live Demo**: [https://json-explorer.vercel.app/](https://json-explorer.vercel.app/) - Try it now without installation!
+**Live Demo**: [https://json-expo.vercel.app/](https://json-expo.vercel.app/) - Try it now without installation!
 
 ### Run with Docker
 

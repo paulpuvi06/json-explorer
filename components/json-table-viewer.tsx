@@ -825,7 +825,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
             </Button>
             
             {showExportOptions && (
-              <div className="absolute top-full right-0 mt-2 w-32 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-xl z-50 overflow-hidden">
+              <div className="absolute top-full right-0 mt-2 min-w-full bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-xl z-50 overflow-hidden">
                 <div className="p-1">
                   <button
                     onClick={() => {
