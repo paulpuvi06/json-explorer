@@ -336,7 +336,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
     if (sortedTableData.length === 0) return
 
     const exportColumns = columns.filter((col) => !excludedFields.has(col) && (!showColumnPanel || visibleColumns.has(col)))
-    const headers = exportColumns.join(",")
+    const headers = exportColumns.map(col => getDisplayColumnName(col)).join(",")
     const rows = sortedTableData.map((row) =>
       exportColumns
         .map((col) => {
@@ -364,7 +364,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
     if (sortedTableData.length === 0) return
 
     const exportColumns = columns.filter((col) => !excludedFields.has(col) && (!showColumnPanel || visibleColumns.has(col)))
-    const headers = exportColumns.join("\t")
+    const headers = exportColumns.map(col => getDisplayColumnName(col)).join("\t")
     const rows = sortedTableData.map((row) =>
       exportColumns
         .map((col) => {
@@ -391,7 +391,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
       const filteredRow: any = {}
       exportColumns.forEach((col) => {
         if (row[col] !== undefined) {
-          filteredRow[col] = row[col]
+          filteredRow[getDisplayColumnName(col)] = row[col]
         }
       })
       return filteredRow
@@ -756,8 +756,8 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
   return (
     <div className="space-y-6">
       {/* Enhanced Header Bar */}
-      <div className="flex items-center justify-between py-4 border-b border-border">
-        <div className="flex items-center gap-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-4 border-b border-border">
+        <div className="flex flex-wrap items-center gap-4 sm:gap-8">
           {/* Grouping Toggle */}
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium">Grouping</span>
@@ -825,7 +825,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
             </Button>
             
             {showExportOptions && (
-              <div className="absolute top-full left-0 mt-2 w-32 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-xl z-50 overflow-hidden">
+              <div className="absolute top-full right-0 mt-2 w-32 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-xl z-50 overflow-hidden">
                 <div className="p-1">
                   <button
                     onClick={() => {
@@ -867,7 +867,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
       {/* Grouping Controls */}
       {enableGrouping && (
         <div className="bg-muted/30 rounded-lg border border-border">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-b border-border">
             <div className="flex items-center gap-3">
               <GripVertical className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">Grouping</span>
@@ -893,31 +893,35 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
           
           {!collapsedPanels.has('grouping') && (
             <div className="p-4">
-              <div className="flex items-center gap-4">
-                <span className="text-sm text-muted-foreground">Group by:</span>
-                <Select value={groupBy} onValueChange={setGroupBy}>
-                  <SelectTrigger className="w-40 h-8">
-                    <SelectValue placeholder="Select field" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No grouping</SelectItem>
-                    {columns.map((col) => (
-                      <SelectItem key={col} value={col}>
-                        {getDisplayColumnName(col)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-muted-foreground">Group by:</span>
+                  <Select value={groupBy} onValueChange={setGroupBy}>
+                    <SelectTrigger className="w-40 h-8">
+                      <SelectValue placeholder="Select field" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No grouping</SelectItem>
+                      {columns.map((col) => (
+                        <SelectItem key={col} value={col}>
+                          {getDisplayColumnName(col)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                 {groupBy !== "none" && Object.keys(groupedData).length > 1 && (
                   <div className="flex gap-1">
                     <Button variant="ghost" size="sm" onClick={expandAll} className="h-6 px-2 text-xs">
                       <ChevronDown className="h-3 w-3 mr-1" />
-                      Expand All
+                      <span className="hidden sm:inline">Expand All</span>
+                      <span className="sm:hidden">Expand</span>
                     </Button>
                     <Button variant="ghost" size="sm" onClick={collapseAll} className="h-6 px-2 text-xs">
                       <ChevronRight className="h-3 w-3 mr-1" />
-                      Collapse All
+                      <span className="hidden sm:inline">Collapse All</span>
+                      <span className="sm:hidden">Collapse</span>
                     </Button>
                   </div>
                 )}
@@ -932,7 +936,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
       {/* Filters Section */}
       {enableAdvancedFilters && (
         <div className="bg-muted/30 rounded-lg border border-border">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-b border-border">
             <div className="flex items-center gap-3">
               <Filter className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">Filters</span>
@@ -947,7 +951,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
               )}
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {filters.length > 0 && (
                 <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${
                   sortedTableData.length < tableData.length 
@@ -985,7 +989,8 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
                 className="h-7 px-3 text-xs bg-gray-100 text-gray-800 border-gray-300"
               >
                 <Plus className="h-3 w-3 mr-1.5" />
-                Add Filter
+                <span className="hidden sm:inline">Add Filter</span>
+                <span className="sm:hidden">Add</span>
               </Button>
               
               {filters.length > 0 && (
@@ -1015,39 +1020,41 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
               {filters.length > 0 && (
                 <div className="space-y-3">
                   {filters.map((filter, index) => (
-                    <div key={index} className="flex items-center gap-3 p-4 bg-muted/20 rounded-lg border border-border/50">
-                      <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center text-xs font-medium">
-                        {index + 1}
+                    <div key={index} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 bg-muted/20 rounded-lg border border-border/50">
+                      <div className="flex items-center gap-3">
+                        <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center text-xs font-medium">
+                          {index + 1}
+                        </div>
+
+                        <Select value={filter.column} onValueChange={(value) => updateFilter(index, "column", value)}>
+                          <SelectTrigger className="w-40 h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {columns.map((col) => (
+                              <SelectItem key={col} value={col}>
+                                {getDisplayColumnName(col)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <Select
+                          value={filter.type}
+                          onValueChange={(value: "contains" | "exact" | "select") => updateFilter(index, "type", value)}
+                        >
+                          <SelectTrigger className="w-32 h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="contains">Search</SelectItem>
+                            <SelectItem value="exact">Exact</SelectItem>
+                            <SelectItem value="select">Select</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
 
-                      <Select value={filter.column} onValueChange={(value) => updateFilter(index, "column", value)}>
-                        <SelectTrigger className="w-40 h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {columns.map((col) => (
-                            <SelectItem key={col} value={col}>
-                              {getDisplayColumnName(col)}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-
-                      <Select
-                        value={filter.type}
-                        onValueChange={(value: "contains" | "exact" | "select") => updateFilter(index, "type", value)}
-                      >
-                        <SelectTrigger className="w-32 h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="contains">Search</SelectItem>
-                          <SelectItem value="exact">Exact</SelectItem>
-                          <SelectItem value="select">Select</SelectItem>
-                        </SelectContent>
-                      </Select>
-
-                      <div className="flex-1 flex gap-2">
+                      <div className="flex-1 flex flex-col sm:flex-row gap-2">
                         {filter.type === "contains" ? (
                           <Select
                             value={filter.searchOperator || "contains"}
@@ -1140,7 +1147,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
       {/* Column Management Panel */}
       {showColumnPanel && (
         <div className="bg-muted/30 rounded-lg border border-border">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-b border-border">
             <div className="flex items-center gap-3">
               <Eye className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">Columns</span>
@@ -1148,14 +1155,15 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
                 {visibleColumns.size}/{columns.length} visible
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setVisibleColumns(new Set(columns))}
                 className="h-7 px-3 text-xs bg-gray-100 text-gray-800 border-gray-300"
               >
-                Show All
+                <span className="hidden sm:inline">Show All</span>
+                <span className="sm:hidden">Show</span>
               </Button>
               <Button
                 variant="outline"
@@ -1163,7 +1171,8 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
                 onClick={() => setVisibleColumns(new Set())}
                 className="h-7 px-3 text-xs bg-gray-100 text-gray-800 border-gray-300"
               >
-                Hide All
+                <span className="hidden sm:inline">Hide All</span>
+                <span className="sm:hidden">Hide</span>
               </Button>
               <Button
                 variant="ghost"

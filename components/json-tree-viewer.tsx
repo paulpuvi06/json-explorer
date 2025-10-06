@@ -32,17 +32,27 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
   const [transformationHistory, setTransformationHistory] = useState<any[]>([data])
   const [historyIndex, setHistoryIndex] = useState(0)
   const previousDataRef = useRef(data)
+  const isInternalTransformationRef = useRef(false)
 
   // Get current data from history
   const currentData = transformationHistory[historyIndex]
 
   // Reset tree view state when data changes
   useEffect(() => {
-    setExpandedNodes(new Set())
-    setSelectedNode(null)
     // Only reset history if data is actually different from previous data
     const dataChanged = data !== previousDataRef.current
     if (dataChanged) {
+      // Check if this is an internal transformation (our own data change)
+      if (isInternalTransformationRef.current) {
+        // This is our own transformation, don't reset expansion state
+        isInternalTransformationRef.current = false
+        previousDataRef.current = data
+        return
+      }
+      
+      // This is a new source data, reset everything
+      setExpandedNodes(new Set())
+      setSelectedNode(null)
       setTransformationHistory([data])
       setHistoryIndex(0)
       previousDataRef.current = data
@@ -50,8 +60,54 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
   }, [data])
 
 
+  // Clean up expansion state for nodes that no longer exist
+  const cleanupExpansionState = useCallback((data: any, expandedNodes: Set<string>) => {
+    const validPaths = new Set<string>()
+    
+    const collectValidPaths = (obj: any, path: string = "") => {
+      if (obj === null || obj === undefined) {
+        validPaths.add(path || "root")
+        return
+      }
+      
+      if (Array.isArray(obj)) {
+        validPaths.add(path || "root")
+        obj.forEach((item, index) => {
+          const itemPath = path ? `${path}[${index}]` : `[${index}]`
+          collectValidPaths(item, itemPath)
+        })
+      } else if (typeof obj === "object") {
+        validPaths.add(path || "root")
+        Object.entries(obj).forEach(([key, value]) => {
+          const childPath = path ? `${path}.${key}` : key
+          collectValidPaths(value, childPath)
+        })
+      } else {
+        validPaths.add(path || "root")
+      }
+    }
+    
+    collectValidPaths(data)
+    
+    // Remove invalid expansion paths
+    const cleanedExpandedNodes = new Set<string>()
+    expandedNodes.forEach(path => {
+      if (validPaths.has(path)) {
+        cleanedExpandedNodes.add(path)
+      }
+    })
+    
+    return cleanedExpandedNodes
+  }, [])
+
   const treeData = useMemo(() => {
     if (!currentData) return []
+    
+    // Clean up expansion state before building tree
+    const cleanedExpandedNodes = cleanupExpansionState(currentData, expandedNodes)
+    if (cleanedExpandedNodes.size !== expandedNodes.size) {
+      setExpandedNodes(cleanedExpandedNodes)
+    }
     
     const buildTree = (obj: any, path: string = "", level: number = 0): TreeNode[] => {
       if (obj === null || obj === undefined) {
@@ -113,7 +169,7 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
     }
 
     return buildTree(currentData)
-  }, [currentData, expandedNodes])
+  }, [currentData, expandedNodes, cleanupExpansionState])
 
   const toggleNode = useCallback((path: string) => {
     setExpandedNodes(prev => {
@@ -165,6 +221,9 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
     newHistory.push(newData)
     setTransformationHistory(newHistory)
     setHistoryIndex(newHistory.length - 1)
+    
+    // Mark this as an internal transformation to prevent expansion reset
+    isInternalTransformationRef.current = true
     onDataChange?.(newData)
   }
 
@@ -891,7 +950,7 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
                   Navigate your JSON data in a hierarchical tree structure, optional transform for table and extract options
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {/* Tree Controls - First */}
                 <Button
                   variant="outline"
@@ -920,44 +979,49 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
                 <div className="w-px h-6 bg-border mx-1" />
                 
                 {/* Global Transformation Controls */}
-                <div className="flex items-center gap-2 px-2 py-1 bg-muted/30 rounded-md">
-                  <span className="text-xs text-muted-foreground font-medium">Global Transform:</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-2 px-2 py-1 bg-muted/30 rounded-md">
+                    <span className="text-xs text-muted-foreground font-medium">Global Transform:</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={flattenData}
+                    className="h-8 text-xs"
+                    disabled={!currentData || (typeof currentData !== 'object')}
+                    title="Flatten nested objects into single level"
+                  >
+                    <Zap className="h-3 w-3 mr-1" />
+                    <span className="hidden sm:inline">Flatten</span>
+                    <span className="sm:hidden">Flat</span>
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={convertObjectToArray}
+                    className="h-8 text-xs"
+                    disabled={!canConvertToArray}
+                    title="Convert object with single array property to root array"
+                  >
+                    <FileText className="h-3 w-3 mr-1" />
+                    <span className="hidden sm:inline">Convert to Array</span>
+                    <span className="sm:hidden">To Array</span>
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={convertArrayToObjects}
+                    className="h-8 text-xs"
+                    disabled={!Array.isArray(currentData)}
+                    title="Convert array items to objects with index"
+                  >
+                    <Table className="h-3 w-3 mr-1" />
+                    <span className="hidden sm:inline">To Objects</span>
+                    <span className="sm:hidden">Objects</span>
+                  </Button>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={flattenData}
-                  className="h-8"
-                  disabled={!currentData || (typeof currentData !== 'object')}
-                  title="Flatten nested objects into single level"
-                >
-                  <Zap className="h-3 w-3 mr-1" />
-                  Flatten
-                </Button>
-                
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={convertObjectToArray}
-                  className="h-8"
-                  disabled={!canConvertToArray}
-                  title="Convert object with single array property to root array"
-                >
-                  <FileText className="h-3 w-3 mr-1" />
-                  Convert to Array
-                </Button>
-                
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={convertArrayToObjects}
-                  className="h-8"
-                  disabled={!Array.isArray(currentData)}
-                  title="Convert array items to objects with index"
-                >
-                  <Table className="h-3 w-3 mr-1" />
-                  To Objects
-                </Button>
                 
                 {/* Separator */}
                 <div className="w-px h-6 bg-border mx-1" />
@@ -1013,24 +1077,26 @@ export function JsonTreeViewer({ data, showStatsOnly = false, showDataPanel = fa
               </Alert>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={expandAll}
-              className="h-8"
+              className="h-8 text-xs"
             >
               <ChevronDown className="h-3 w-3 mr-1" />
-              Expand All
+              <span className="hidden sm:inline">Expand All</span>
+              <span className="sm:hidden">Expand</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={collapseAll}
-              className="h-8"
+              className="h-8 text-xs"
             >
               <ChevronRight className="h-3 w-3 mr-1" />
-              Collapse All
+              <span className="hidden sm:inline">Collapse All</span>
+              <span className="sm:hidden">Collapse</span>
             </Button>
           </div>
         </div>

@@ -548,11 +548,16 @@ export default function JsonExplorerApp() {
 
   // Auto-resize textarea when content changes
   useEffect(() => {
-    const textarea = document.querySelector('textarea[placeholder="Paste your JSON data here..."]') as HTMLTextAreaElement
-    if (textarea) {
-      textarea.style.height = 'auto'
-      textarea.style.height = Math.max(200, Math.min(textarea.scrollHeight, window.innerHeight * 0.6)) + 'px'
-    }
+    // Use setTimeout to ensure DOM has updated after content change
+    const timeoutId = setTimeout(() => {
+      const textarea = document.querySelector('textarea[placeholder="Paste your JSON data here..."]') as HTMLTextAreaElement
+      if (textarea) {
+        textarea.style.height = 'auto'
+        textarea.style.height = Math.max(150, Math.min(textarea.scrollHeight, window.innerHeight * 0.4)) + 'px'
+      }
+    }, 0)
+    
+    return () => clearTimeout(timeoutId)
   }, [jsonInput])
 
   // Handle fullscreen changes
@@ -1044,25 +1049,6 @@ export default function JsonExplorerApp() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <span>© 2025 JSON Explorer</span>
-              {showPersonalBranding && (
-                <>
-                  <span className="hidden sm:inline">•</span>
-                  <div className="text-center sm:text-left">
-                    <span className="text-xs sm:text-sm">
-                      Envisioned by{' '}
-                      <a 
-                        href="https://www.linkedin.com/in/paulpuvi/" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-primary hover:text-primary/80 transition-colors font-medium"
-                      >
-                        Paul
-                      </a>
-                      {' '}and completed with AI assistance 😉
-                    </span>
-                  </div>
-                </>
-              )}
             </div>
             {!isDocker && (
               <div className="flex items-center gap-4">
@@ -1112,7 +1098,7 @@ export default function JsonExplorerApp() {
                   </h3>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="border border-border rounded-lg p-4">
+                    <div className="border border-border rounded-lg p-4 bg-muted/30 hover:bg-muted/50 transition-colors">
                       <div className="flex items-center gap-2 mb-2">
                         <FileText className="h-4 w-4 text-blue-500" />
                         <h4 className="font-medium">Paste JSON</h4>
@@ -1120,7 +1106,7 @@ export default function JsonExplorerApp() {
                       <p className="text-sm text-muted-foreground">Copy & paste JSON directly. Use <kbd className="px-1 py-0.5 bg-muted rounded text-xs">Ctrl+Enter</kbd> to parse.</p>
                     </div>
 
-                    <div className="border border-border rounded-lg p-4">
+                    <div className="border border-border rounded-lg p-4 bg-muted/30 hover:bg-muted/50 transition-colors">
                       <div className="flex items-center gap-2 mb-2">
                         <Upload className="h-4 w-4 text-green-500" />
                         <h4 className="font-medium">Upload File</h4>
@@ -1128,7 +1114,7 @@ export default function JsonExplorerApp() {
                       <p className="text-sm text-muted-foreground">Drag & drop or browse for JSON files up to 10MB.</p>
                     </div>
 
-                    <div className="border border-border rounded-lg p-4">
+                    <div className="border border-border rounded-lg p-4 bg-muted/30 hover:bg-muted/50 transition-colors">
                       <div className="flex items-center gap-2 mb-2">
                         <Download className="h-4 w-4 text-purple-500" />
                         <h4 className="font-medium">Fetch URL</h4>
@@ -1138,125 +1124,283 @@ export default function JsonExplorerApp() {
                   </div>
                 </div>
 
-                {/* View Modes */}
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                    <Table className="h-5 w-5 text-primary" />
-                    View Modes
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="border border-border rounded-lg p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Table className="h-4 w-4 text-blue-500" />
-                        <h4 className="font-medium">Table View</h4>
-                      </div>
-                      <ul className="text-sm text-muted-foreground space-y-1">
-                        <li>• Perfect for arrays of objects</li>
-                        <li>• Sortable columns</li>
-                        <li>• Search and filter capabilities</li>
-                        <li>• Export to CSV</li>
-                        <li>• Auto-switches for flat JSON</li>
-                      </ul>
-                    </div>
-
-                    <div className="border border-border rounded-lg p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <TreePine className="h-4 w-4 text-green-500" />
-                        <h4 className="font-medium">Tree View</h4>
-                      </div>
-                       <ul className="text-sm text-muted-foreground space-y-1">
-                         <li>• Hierarchical data visualization</li>
-                         <li>• Edit data directly</li>
-                         <li>• Copy individual values</li>
-                         <li>• Transform/flatten data for table view</li>
-                         <li>• Works with any JSON structure</li>
-                       </ul>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Table Features */}
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                    <Table className="h-5 w-5 text-primary" />
-                    Table View Features
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-sm">
-                        <BarChart3 className="h-4 w-4 text-blue-500" />
-                        <span><strong>Grouping:</strong> Organize data by columns</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Filter className="h-4 w-4 text-green-500" />
-                        <span><strong>Filtering:</strong> Search and filter rows</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Settings className="h-4 w-4 text-purple-500" />
-                        <span><strong>Columns:</strong> Show/hide, sort, resize</span>
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Download className="h-4 w-4 text-orange-500" />
-                        <span><strong>Export:</strong> CSV, JSON, Excel formats</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Search className="h-4 w-4 text-indigo-500" />
-                        <span><strong>Search:</strong> Find data across columns</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <BarChart3 className="h-4 w-4 text-red-500" />
-                        <span><strong>Sorting:</strong> Multi-column sorting</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Features */}
                 <div>
                   <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
                     <Shield className="h-5 w-5 text-primary" />
-                    Features
+                    App Features
                   </h3>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-sm">
+                    <div className="border border-border rounded-lg p-4 bg-muted/20">
+                      <div className="flex items-center gap-2 mb-3">
                         <History className="h-4 w-4 text-blue-500" />
-                        <span><strong>File History</strong> - Saves recent JSON files locally</span>
+                        <h4 className="font-medium">Data Management</h4>
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Maximize className="h-4 w-4 text-green-500" />
-                        <span><strong>Fullscreen</strong> - Distraction-free viewing</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Copy className="h-4 w-4 text-purple-500" />
-                        <span><strong>Copy JSON</strong> - One-click clipboard copy</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <RotateCcw className="h-4 w-4 text-orange-500" />
-                        <span><strong>Undo/Redo</strong> - Edit history support</span>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm">
+                          <History className="h-4 w-4 text-blue-500" />
+                          <span><strong>File History</strong> - Saves recent JSON files locally</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Copy className="h-4 w-4 text-purple-500" />
+                          <span><strong>Copy JSON</strong> - One-click clipboard copy</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <RotateCcw className="h-4 w-4 text-orange-500" />
+                          <span><strong>Undo/Redo</strong> - Edit history support</span>
+                        </div>
                       </div>
                     </div>
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-sm">
-                        <BarChart3 className="h-4 w-4 text-red-500" />
-                        <span><strong>Data Stats</strong> - Object/array counts</span>
+
+                    <div className="border border-border rounded-lg p-4 bg-muted/20">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Maximize className="h-4 w-4 text-green-500" />
+                        <h4 className="font-medium">User Experience</h4>
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        <span><strong>Validation</strong> - Real-time JSON checking</span>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Maximize className="h-4 w-4 text-green-500" />
+                          <span><strong>Fullscreen</strong> - Distraction-free viewing</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                          <span><strong>Validation</strong> - Real-time JSON checking</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <RefreshCw className="h-4 w-4 text-blue-500" />
+                          <span><strong>Auto-refresh</strong> - Live data updates</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <RefreshCw className="h-4 w-4 text-blue-500" />
-                        <span><strong>Auto-refresh</strong> - Live data updates</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* View Modes */}
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <Table className="h-5 w-5 text-primary" />
+                    View Modes & Features
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="border border-border rounded-lg p-4 bg-muted/20">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Table className="h-4 w-4 text-blue-500" />
+                        <h4 className="font-medium">Table View</h4>
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Download className="h-4 w-4 text-indigo-500" />
-                        <span><strong>Export</strong> - Download processed data</span>
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-2">Perfect for arrays of objects with powerful analysis tools:</p>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="flex items-center gap-1">
+                              <BarChart3 className="h-3 w-3 text-blue-500" />
+                              <span>Sortable columns</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Filter className="h-3 w-3 text-green-500" />
+                              <span>Search & filter</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Settings className="h-3 w-3 text-purple-500" />
+                              <span>Column controls</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Download className="h-3 w-3 text-orange-500" />
+                              <span>Export CSV/Excel</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border border-border rounded-lg p-4 bg-muted/20">
+                      <div className="flex items-center gap-2 mb-3">
+                        <TreePine className="h-4 w-4 text-green-500" />
+                        <h4 className="font-medium">Tree View</h4>
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-2">Hierarchical visualization with editing capabilities:</p>
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="flex items-center gap-1">
+                              <TreePine className="h-3 w-3 text-green-500" />
+                              <span>Hierarchical data</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Copy className="h-3 w-3 text-purple-500" />
+                              <span>Edit & copy values</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <RotateCcw className="h-3 w-3 text-orange-500" />
+                              <span>Transform data</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <CheckCircle className="h-3 w-3 text-green-500" />
+                              <span>Any JSON structure</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Nested JSON & Table View */}
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <TreePine className="h-5 w-5 text-primary" />
+                    Working with Nested JSON
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    <div className="bg-muted/20 border border-border rounded-lg p-4">
+                      <h4 className="font-semibold mb-2">Table View Requirements</h4>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        Table view needs <strong>flat JSON arrays</strong> (root must be an array). For nested data, use Tree View to flatten or extract specific properties.
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <h5 className="font-medium text-blue-800 text-sm mb-1">✅ Works (Flat):</h5>
+                          <pre className="text-xs bg-blue-100 p-2 rounded border overflow-x-auto text-blue-800">
+{`[
+  {
+    "name": "web-app",
+    "resourceGroup": "rg-prod",
+    "location": "East US",
+    "status": "Running"
+  },
+  {
+    "name": "api-service",
+    "resourceGroup": "rg-dev", 
+    "location": "West US",
+    "status": "Stopped"
+  }
+]`}
+                          </pre>
+                        </div>
+                        <div>
+                          <h5 className="font-medium text-blue-800 text-sm mb-1">❌ Doesn't work (Nested):</h5>
+                          <pre className="text-xs bg-red-100 p-2 rounded border overflow-x-auto text-red-800">
+{`{
+  "resources": [
+    {
+      "name": "web-app",
+      "type": "Microsoft.Web/sites",
+      "location": "East US",
+      "properties": {
+        "state": "Running",
+        "hostNames": ["web-app.azurewebsites.net"]
+      }
+    }
+  ]
+}`}
+                          </pre>
+                          <p className="text-xs text-red-600 mt-1">
+                            <em>Can be flattened using "Flatten" option in Tree View</em>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-muted/20 border border-border rounded-lg p-4">
+                      <h4 className="font-semibold mb-2">Handling Arrays & Multiple Properties</h4>
+                      <div className="space-y-2 text-sm text-muted-foreground">
+                        <div className="flex items-start gap-2">
+                          <span className="font-bold">1.</span>
+                          <span>Use <strong>Tree View</strong> to explore your JSON structure</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="font-bold">2.</span>
+                          <span>For <strong>root objects with single array property</strong>: Convert to array using "Transform Data" → "Convert to Array"</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="font-bold">3.</span>
+                          <span>For <strong>nested data</strong>: Use "Transform Data" → "Flatten" to create flat properties</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="font-bold">4.</span>
+                          <span>For <strong>array properties</strong>: Click to extract values for specific properties</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <span className="font-bold">5.</span>
+                          <span><strong>Copy & paste</strong> extracted data into the text area to create flat JSON</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gradient-to-br from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg p-4 shadow-sm">
+                      <h4 className="font-semibold text-yellow-800 mb-3 flex items-center gap-2">
+                        <Zap className="h-4 w-4 text-yellow-600" />
+                        Quick Example
+                      </h4>
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-sm text-yellow-700 mb-3">
+                            Common scenarios for enabling table view:
+                          </p>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                            <div className="bg-yellow-100 border border-yellow-300 rounded-md p-2 text-center">
+                              <div className="text-xs font-medium text-yellow-800">Root Object</div>
+                              <div className="text-xs text-yellow-600">Convert to array first</div>
+                            </div>
+                            <div className="bg-yellow-100 border border-yellow-300 rounded-md p-2 text-center">
+                              <div className="text-xs font-medium text-yellow-800">Nested Arrays</div>
+                              <div className="text-xs text-yellow-600">Extract properties</div>
+                            </div>
+                            <div className="bg-yellow-100 border border-yellow-300 rounded-md p-2 text-center">
+                              <div className="text-xs font-medium text-yellow-800">Mixed Data</div>
+                              <div className="text-xs text-yellow-600">Transform step by step</div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
+                          <h5 className="font-semibold text-blue-800 text-sm mb-3 flex items-center gap-2">
+                            <Code className="h-3 w-3 text-blue-600" />
+                            Azure Web Apps Example:
+                          </h5>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                <p className="text-xs font-medium text-blue-800">Before (Root object with array property):</p>
+                              </div>
+                              <pre className="text-xs bg-blue-100 border border-blue-300 p-3 rounded-md overflow-x-auto text-blue-900 shadow-sm">
+{`{
+  "resources": [
+    {
+      "name": "web-app",
+      "type": "Microsoft.Web/sites",
+      "location": "East US",
+      "properties": {
+        "state": "Running",
+        "hostNames": ["web-app.azurewebsites.net"]
+      }
+    }
+  ]
+}`}
+                              </pre>
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <p className="text-xs font-medium text-blue-800">After (Convert to Array + Flatten):</p>
+                              </div>
+                              <pre className="text-xs bg-green-100 border border-green-300 p-3 rounded-md overflow-x-auto text-green-900 shadow-sm">
+{`[
+  {
+    "name": "web-app",
+    "type": "Microsoft.Web/sites",
+    "location": "East US",
+    "properties_state": "Running",
+    "properties_hostNames": "web-app.azurewebsites.net"
+  }
+]`}
+                              </pre>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1394,7 +1538,24 @@ export default function JsonExplorerApp() {
               </div>
               
               <div className="space-y-4 text-sm">
+                {/* Technology Stack */}
                 <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                      <Code className="h-4 w-4 text-primary" />
+                      Technology Stack
+                    </h3>
+                    <button
+                      onClick={() => {
+                        setShowInfoModal(false)
+                        setShowHelpModal(true)
+                      }}
+                      className="p-1.5 hover:bg-muted/50 rounded-md transition-colors"
+                      title="View Documentation & Help"
+                    >
+                      <BookOpen className="h-4 w-4 text-muted-foreground hover:text-primary transition-colors" />
+                    </button>
+                  </div>
                   <div className="space-y-2 text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
@@ -1415,9 +1576,27 @@ export default function JsonExplorerApp() {
                   </div>
                 </div>
 
+                {/* Version & Credits */}
                 <div className="pt-4 border-t border-border">
                   <div className="text-xs text-muted-foreground text-center">
                     <span>Version {packageJson.version}</span>
+                    {showPersonalBranding && (
+                      <>
+                        <span className="mx-2">•</span>
+                        <span>
+                          Ideated by{' '}
+                          <a 
+                            href="https://www.linkedin.com/in/paulpuvi/" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary hover:text-primary/80 transition-colors font-medium"
+                          >
+                            Paul
+                          </a>
+                          , built with AI assistance 😉⚡
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
