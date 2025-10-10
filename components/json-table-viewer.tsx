@@ -29,6 +29,10 @@ import {
   FileCode,
   Eye,
   Edit3,
+  Maximize2,
+  Search,
+  Minimize2,
+  Maximize,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -81,6 +85,9 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
   const [showColumnPanel, setShowColumnPanel] = useState<boolean>(false)
   const [collapsedPanels, setCollapsedPanels] = useState<Set<string>>(new Set())
   const [columnsInitialized, setColumnsInitialized] = useState<boolean>(false)
+  const [isFullViewOpen, setIsFullViewOpen] = useState<boolean>(false)
+  const [rowHeightMode, setRowHeightMode] = useState<"compact" | "normal">("normal")
+  const [globalSearch, setGlobalSearch] = useState<string>("")
 
   useEffect(() => {
     setGroupBy("none")
@@ -102,7 +109,32 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
     setVisibleColumns(new Set())
     setShowColumnPanel(false)
     setColumnsInitialized(false)
+    setIsFullViewOpen(false)
+    setRowHeightMode("normal")
+    setGlobalSearch("")
   }, [data])
+
+  // ESC key handler for modal and Ctrl+F for search
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isFullViewOpen) {
+        setIsFullViewOpen(false)
+      }
+      
+      // Ctrl+F or Cmd+F to focus search
+      if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
+        event.preventDefault()
+        const searchInput = document.querySelector('input[placeholder="Search..."]') as HTMLInputElement
+        if (searchInput) {
+          searchInput.focus()
+          searchInput.select()
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isFullViewOpen])
 
   const tableData = useMemo(() => {
     if (!data) return []
@@ -197,10 +229,71 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
     return Object.fromEntries(Object.entries(values).map(([col, valueSet]) => [col, Array.from(valueSet).sort()]))
   }, [tableData, columns])
 
-  const filteredTableData = useMemo(() => {
-    if (filters.length === 0) return tableData
+  // Calculate dynamic column widths based on average content length
+  const columnWidths = useMemo(() => {
+    const widths: Record<string, number> = {}
+    const characterWidthMultiplier = 8 // ~8px per character for monospace font
 
-    return tableData.filter((row) => {
+    columns.forEach((col) => {
+      let totalLength = 0
+      let validValues = 0
+
+      tableData.forEach((row) => {
+        const cellValue = row[col]
+        if (cellValue !== null && cellValue !== undefined) {
+          let stringValue: string
+          if (Array.isArray(cellValue)) {
+            stringValue = cellValue.join(", ")
+          } else if (typeof cellValue === "object") {
+            stringValue = JSON.stringify(cellValue)
+          } else {
+            stringValue = String(cellValue)
+          }
+          totalLength += stringValue.length
+          validValues++
+        }
+      })
+
+      const averageLength = validValues > 0 ? totalLength / validValues : 0
+      const calculatedWidth = averageLength * characterWidthMultiplier
+      const headerLength = col.length * characterWidthMultiplier
+      
+      // Use the larger of calculated width or header width, with 150px minimum
+      widths[col] = Math.max(150, Math.max(calculatedWidth, headerLength))
+    })
+
+    return widths
+  }, [tableData, columns])
+
+  const filteredTableData = useMemo(() => {
+    let filtered = tableData
+
+    // Apply global search first
+    if (globalSearch.trim()) {
+      const searchTerm = globalSearch.toLowerCase().trim()
+      filtered = filtered.filter((row) => {
+        return columns.some((col) => {
+          const cellValue = row[col]
+          if (cellValue === null || cellValue === undefined) return false
+          
+          let stringValue: string
+          if (Array.isArray(cellValue)) {
+            stringValue = cellValue.join(", ")
+          } else if (typeof cellValue === "object") {
+            stringValue = JSON.stringify(cellValue)
+          } else {
+            stringValue = String(cellValue)
+          }
+          
+          return stringValue.toLowerCase().includes(searchTerm)
+        })
+      })
+    }
+
+    // Apply advanced filters
+    if (filters.length === 0) return filtered
+
+    return filtered.filter((row) => {
       const filterResults = filters.map((filter) => {
         if (!filter.value.trim() || filter.value === "default") return true
 
@@ -257,7 +350,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
         return filterResults.some(Boolean)
       }
     })
-  }, [tableData, filters, filterLogic])
+  }, [tableData, filters, filterLogic, globalSearch, columns])
 
   const sortedTableData = useMemo(() => {
     if (!sortState) return filteredTableData
@@ -725,6 +818,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
   // Stats only view for header
   if (showStatsOnly) {
     const hasFilters = enableAdvancedFilters && filters.length > 0
+    const hasGlobalSearch = globalSearch.trim().length > 0
     const isFiltered = sortedTableData.length !== tableData.length
     return (
       <div className="flex flex-wrap items-center gap-2">
@@ -739,6 +833,11 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
           {sortedTableData.length} rows × {columns.length} columns
           {isFiltered && " (filtered)"}
         </Badge>
+        {hasGlobalSearch && (
+          <Badge variant="outline" className="text-xs font-medium bg-blue-50 text-blue-700 border-blue-200 h-7 px-3">
+            Search: "{globalSearch}" ({sortedTableData.length} results)
+          </Badge>
+        )}
         {sortState && (
           <Badge variant="secondary" className="text-xs font-medium h-7 px-3">
             Sorted by {sortState.column} ({sortState.direction})
@@ -756,16 +855,17 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
   return (
     <div className="space-y-6">
       {/* Enhanced Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-4 border-b border-border">
-        <div className="flex flex-wrap items-center gap-4 sm:gap-8">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 py-4 border-b border-border">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 lg:gap-8">
           {/* Grouping Toggle */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <span className="text-sm font-medium">Grouping</span>
             <button
               onClick={() => setEnableGrouping(!enableGrouping)}
               className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                 enableGrouping ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
               }`}
+              title="Toggle grouping"
             >
               <span
                 className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform shadow-sm ${
@@ -776,13 +876,14 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
           </div>
 
           {/* Filters Toggle */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <span className="text-sm font-medium">Filters</span>
             <button
               onClick={() => setEnableAdvancedFilters(!enableAdvancedFilters)}
               className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                 enableAdvancedFilters ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
               }`}
+              title="Toggle filters"
             >
               <span
                 className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform shadow-sm ${
@@ -793,13 +894,14 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
           </div>
 
           {/* Column Visibility Toggle */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <span className="text-sm font-medium">Columns</span>
             <button
               onClick={() => setShowColumnPanel(!showColumnPanel)}
               className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
                 showColumnPanel ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'
               }`}
+              title="Toggle column visibility"
             >
               <span
                 className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform shadow-sm ${
@@ -810,17 +912,82 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
           </div>
         </div>
 
-        {/* Enhanced Export */}
-        <div className="flex items-center gap-3">
+        {/* Enhanced Export and Maximize */}
+        <div className="flex items-center gap-1 sm:gap-2 lg:gap-3 flex-wrap">
+          {/* Global Search */}
+          <div className="flex items-center gap-2">
+            {globalSearch && (
+              <div className="text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap transition-colors duration-200"
+                   style={{
+                     backgroundColor: sortedTableData.length > 0 ? '#f0f9ff' : '#fef2f2',
+                     color: sortedTableData.length > 0 ? '#0369a1' : '#dc2626',
+                     border: `1px solid ${sortedTableData.length > 0 ? '#bae6fd' : '#fecaca'}`
+                   }}>
+                {sortedTableData.length} result{sortedTableData.length !== 1 ? 's' : ''}
+                {sortedTableData.length === 0 && (
+                  <span className="ml-1">• No matches</span>
+                )}
+              </div>
+            )}
+            <div className="relative group">
+              <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors duration-200" />
+              <Input
+                type="text"
+                placeholder="Search..."
+                value={globalSearch}
+                onChange={(e) => setGlobalSearch(e.target.value)}
+                className="pl-8 pr-8 h-8 w-40 sm:w-48 md:w-56 bg-background/95 backdrop-blur-sm border-muted/60 focus:border-primary/60 focus:bg-background shadow-sm hover:shadow-md focus:shadow-lg transition-all duration-200 rounded-md text-sm"
+                title="Search across all columns (Ctrl+F to focus)"
+              />
+              {globalSearch && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setGlobalSearch("")}
+                  className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-muted/80 rounded transition-colors duration-150"
+                  title="Clear search"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setRowHeightMode(rowHeightMode === "normal" ? "compact" : "normal")}
+            className="h-8 px-1.5 sm:px-2 md:px-3 bg-background/90 backdrop-blur-sm border-muted/50 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200 flex items-center gap-1 shadow-sm hover:shadow-md"
+            title={rowHeightMode === "normal" ? "Switch to compact view" : "Switch to normal view"}
+          >
+            {rowHeightMode === "normal" ? (
+              <Minimize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+            ) : (
+              <Maximize className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+            )}
+            <span className="text-sm font-medium hidden md:inline">{rowHeightMode === "normal" ? "Compact" : "Normal"}</span>
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsFullViewOpen(true)}
+            className="h-8 px-1.5 sm:px-2 md:px-3 bg-background/90 backdrop-blur-sm border-muted/50 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200 flex items-center gap-1 shadow-sm hover:shadow-md"
+            title="Expand table view"
+          >
+            <Maximize2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+            <span className="text-sm font-medium hidden md:inline">Expand</span>
+          </Button>
+          
           <div className="relative">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowExportOptions(!showExportOptions)}
-              className="h-8 px-3 bg-background/90 backdrop-blur-sm border-muted/50 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+              className="h-8 px-1.5 sm:px-2 md:px-3 bg-background/90 backdrop-blur-sm border-muted/50 hover:border-primary/50 hover:bg-primary/5 transition-all duration-200 flex items-center gap-1 shadow-sm hover:shadow-md"
+              title="Export data"
             >
-              <FileSpreadsheet className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">Export</span>
+              <FileSpreadsheet className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
+              <span className="text-sm font-medium hidden md:inline">Export</span>
               <ChevronDown className={cn("h-3 w-3 text-muted-foreground transition-transform duration-200", showExportOptions && "rotate-180")} />
             </Button>
             
@@ -867,7 +1034,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
       {/* Grouping Controls */}
       {enableGrouping && (
         <div className="bg-muted/30 rounded-lg border border-border">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-b border-border">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-3 sm:px-4 py-3 border-b border-border">
             <div className="flex items-center gap-3">
               <GripVertical className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">Grouping</span>
@@ -892,7 +1059,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
           </div>
           
           {!collapsedPanels.has('grouping') && (
-            <div className="p-4">
+            <div className="p-3 sm:p-4">
               <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                 <div className="flex items-center gap-4">
                   <span className="text-sm text-muted-foreground">Group by:</span>
@@ -936,7 +1103,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
       {/* Filters Section */}
       {enableAdvancedFilters && (
         <div className="bg-muted/30 rounded-lg border border-border">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-b border-border">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-3 sm:px-4 py-3 border-b border-border">
             <div className="flex items-center gap-3">
               <Filter className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">Filters</span>
@@ -1015,7 +1182,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
           </div>
 
           {!collapsedPanels.has('filters') && (
-            <div className="p-4">
+            <div className="p-3 sm:p-4">
               {/* Filter Items */}
               {filters.length > 0 && (
                 <div className="space-y-3">
@@ -1147,7 +1314,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
       {/* Column Management Panel */}
       {showColumnPanel && (
         <div className="bg-muted/30 rounded-lg border border-border">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 py-3 border-b border-border">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-3 sm:px-4 py-3 border-b border-border">
             <div className="flex items-center gap-3">
               <Eye className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">Columns</span>
@@ -1190,7 +1357,7 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
           </div>
           
           {!collapsedPanels.has('columns') && (
-            <div className="p-4">
+            <div className="p-3 sm:p-4">
               <div className="mb-3 p-2 bg-muted/50 border border-border/50 rounded-md">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 bg-muted-foreground rounded-full flex items-center justify-center">
@@ -1257,18 +1424,21 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
         </div>
       )}
 
-      {/* Data Table - Only show when there are results */}
-      {sortedTableData.length > 0 && (
+      {/* Data Table - Show when there are results or when grouping is enabled */}
+      {(sortedTableData.length > 0 || (enableGrouping && groupBy !== "none")) && (
         <div className="space-y-3">
           {Object.entries(groupedData).map(([groupKey, groupRows]) => {
             const isExpanded = expandedGroups[groupKey] !== false
-            const showGroupHeader = enableGrouping && groupBy !== "none" && Object.keys(groupedData).length > 1
+            const showGroupHeader = enableGrouping && groupBy !== "none"
 
             return (
               <div key={groupKey} className="border border-border rounded-lg overflow-hidden">
                 {/* Group Header */}
                 {showGroupHeader && (
-                  <div className="bg-muted/50 px-4 py-3 border-b border-border">
+                  <div className={cn(
+                    "bg-muted/50 border-b border-border",
+                    rowHeightMode === "compact" ? "px-3 py-2" : "px-4 py-3"
+                  )}>
                     <div className="flex items-center gap-3">
                       <Button
                         variant="ghost"
@@ -1288,9 +1458,11 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
 
                 {/* Table */}
                 {isExpanded && (
+                  <>
+                    {groupRows.length > 0 ? (
                   <div className={cn(
                     "relative overflow-auto",
-                    enableGrouping && groupBy !== "none" ? "max-h-[400px]" : "max-h-[600px]"
+                    enableGrouping && groupBy !== "none" ? "max-h-[300px] sm:max-h-[400px]" : "max-h-[400px] sm:max-h-[600px]"
                   )}>
                     <Table className="w-full">
                       <TableHeader className={cn(
@@ -1307,19 +1479,20 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
                             <TableHead
                               key={col}
                               className={cn(
-                                "px-4 py-3 font-medium cursor-pointer hover:bg-muted/50",
-                                draggedColumn === col && "dragging opacity-50",
-                                expandedColumns.has(col) ? "min-w-80 max-w-none" : "min-w-48 max-w-96"
+                                "font-medium cursor-pointer hover:bg-muted/50",
+                                rowHeightMode === "compact" ? "px-3 py-2" : "px-4 py-3",
+                                draggedColumn === col && "dragging opacity-50"
                               )}
+                              style={{ minWidth: expandedColumns.has(col) ? columnWidths[col] * 2 : columnWidths[col] }}
                               draggable
                               onDragStart={(e) => handleDragStart(e, col)}
                               onDragOver={handleDragOver}
                               onDrop={(e) => handleDrop(e, col)}
                               onDragEnd={handleDragEnd}
                             >
-                              <div className="flex items-center gap-2 min-w-0">
+                              <div className="flex items-center gap-2">
                                 <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                                <span className="truncate" title={col}>{getDisplayColumnName(col)}</span>
+                                <span className="whitespace-nowrap" title={col}>{getDisplayColumnName(col)}</span>
                                 <div className="flex items-center gap-1 ml-auto">
                                   <Button
                                     variant="ghost"
@@ -1379,8 +1552,14 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
                               </TableCell>
                             )}
                             {columns.filter(col => !showColumnPanel || visibleColumns.has(col)).map((col) => (
-                              <TableCell key={col} className={cn("px-4 py-3", expandedColumns.has(col) ? "max-w-none" : "max-w-96")}>
-                                <div className={expandedColumns.has(col) ? "" : "truncate"}>
+                              <TableCell 
+                                key={col} 
+                                className={cn(
+                                  rowHeightMode === "compact" ? "px-3 py-2" : "px-4 py-3"
+                                )}
+                                style={{ minWidth: expandedColumns.has(col) ? columnWidths[col] * 2 : columnWidths[col] }}
+                              >
+                                <div className={expandedColumns.has(col) ? "whitespace-normal" : "truncate"}>
                                   {renderCellValue(row[col], rowIndex, col)}
                                 </div>
                               </TableCell>
@@ -1390,10 +1569,192 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
                       </TableBody>
                     </Table>
                   </div>
+                    ) : (
+                      <div className="px-4 py-8 text-center text-muted-foreground">
+                        <p className="text-sm">No items match the current filters</p>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* Full View Modal */}
+      {isFullViewOpen && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="w-[98vw] sm:w-[95vw] h-[98vh] sm:h-[95vh] bg-background rounded-lg border border-border shadow-xl flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-3 sm:p-4 border-b border-border">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                <Maximize2 className="h-4 w-4 sm:h-5 sm:w-5 text-primary flex-shrink-0" />
+                <h2 className="text-base sm:text-lg font-semibold truncate">Expanded Table View</h2>
+                <Badge variant="outline" className="text-xs flex-shrink-0">
+                  {sortedTableData.length} × {columns.length}
+                </Badge>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsFullViewOpen(false)}
+                className="h-8 w-8 p-0 flex-shrink-0"
+                title="Close modal"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Modal Content - Reuse the table structure */}
+            <div className="flex-1 overflow-auto">
+              <div className="space-y-3 p-2 sm:p-4">
+                {Object.entries(groupedData).map(([groupKey, groupRows]) => {
+                  const isExpanded = expandedGroups[groupKey] !== false
+                  const showGroupHeader = enableGrouping && groupBy !== "none"
+
+                  return (
+                    <div key={groupKey} className="border border-border rounded-lg overflow-hidden">
+                      {/* Group Header */}
+                      {showGroupHeader && (
+                        <div className={cn(
+                    "bg-muted/50 border-b border-border",
+                    rowHeightMode === "compact" ? "px-3 py-2" : "px-4 py-3"
+                  )}>
+                          <div className="flex items-center gap-3">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => toggleGroup(groupKey)}
+                            >
+                              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            </Button>
+                            <span className="font-medium">{groupKey}</span>
+                            <Badge variant="secondary" className="text-xs">
+                              {groupRows.length} items
+                            </Badge>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Table */}
+                      {isExpanded && (
+                        <>
+                          {groupRows.length > 0 ? (
+                        <div className="relative overflow-auto">
+                          <Table className="w-full">
+                            <TableHeader className="sticky top-0 bg-background border-b border-border z-20">
+                              <TableRow>
+                                {enableGrouping && groupBy !== "none" && (
+                                  <TableHead className="w-12 px-4 py-3">
+                                    <GripVertical className="h-3 w-3 text-muted-foreground" />
+                                  </TableHead>
+                                )}
+                                {columns.filter(col => !showColumnPanel || visibleColumns.has(col)).map((col) => (
+                                  <TableHead
+                                    key={col}
+                                    className={cn(
+                                      "px-4 py-3 font-medium cursor-pointer hover:bg-muted/50",
+                                      draggedColumn === col && "dragging opacity-50"
+                                    )}
+                                    style={{ minWidth: expandedColumns.has(col) ? columnWidths[col] * 2 : columnWidths[col] }}
+                                    draggable
+                                    onDragStart={(e) => handleDragStart(e, col)}
+                                    onDragOver={handleDragOver}
+                                    onDrop={(e) => handleDrop(e, col)}
+                                    onDragEnd={handleDragEnd}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <GripVertical className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                                      <span className="whitespace-nowrap" title={col}>{getDisplayColumnName(col)}</span>
+                                      <div className="flex items-center gap-1 ml-auto">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-4 w-4 p-0"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            openRenameDialog(col)
+                                          }}
+                                          title="Rename column"
+                                        >
+                                          <Edit3 className="h-3 w-3" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-4 w-4 p-0"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            toggleColumnExpansion(col)
+                                          }}
+                                          title={expandedColumns.has(col) ? "Collapse column" : "Expand column"}
+                                        >
+                                          <Expand className="h-3 w-3" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-4 w-4 p-0"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleSort(col)
+                                          }}
+                                        >
+                                          {sortState?.column === col ? (
+                                            sortState.direction === "asc" ? (
+                                              <ArrowUp className="h-3 w-3" />
+                                            ) : (
+                                              <ArrowDown className="h-3 w-3" />
+                                            )
+                                          ) : (
+                                            <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
+                                          )}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </TableHead>
+                                ))}
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody className="bg-background">
+                              {groupRows.map((row, rowIndex) => (
+                                <TableRow key={row._key ? `${row._key}-${row._index}` : row._index ?? rowIndex} className="hover:bg-muted/50">
+                                  {enableGrouping && groupBy !== "none" && (
+                                    <TableCell className="px-4 py-3 w-12">
+                                      <div className="w-1 h-4 bg-muted rounded-full"></div>
+                                    </TableCell>
+                                  )}
+                                  {columns.filter(col => !showColumnPanel || visibleColumns.has(col)).map((col) => (
+                                    <TableCell 
+                                      key={col} 
+                                      className="px-4 py-3"
+                                      style={{ minWidth: expandedColumns.has(col) ? columnWidths[col] * 2 : columnWidths[col] }}
+                                    >
+                                      <div className={expandedColumns.has(col) ? "whitespace-normal" : "truncate"}>
+                                        {renderCellValue(row[col], rowIndex, col)}
+                                      </div>
+                                    </TableCell>
+                                  ))}
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                          ) : (
+                            <div className="px-4 py-8 text-center text-muted-foreground">
+                              <p className="text-sm">No items match the current filters</p>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
