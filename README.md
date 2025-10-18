@@ -5,15 +5,17 @@ A JSON data analyzer and viewer. Parse, explore, filter, and analyze JSON data i
 ## Quick Start
 
 ### Try Online
-**Live **: [https://json-expo.vercel.app](https://json-expo.vercel.app/) - Try it now without installation!
+[![Live](https://img.shields.io/badge/Live-Vercel-00C7B7?style=for-the-badge&logo=vercel&logoColor=white)](https://json-expo.vercel.app/)
+
 
 ### Run with Docker
 
-**Docker Hub**: [json-explorer](https://hub.docker.com/r/paulpuvi/json-explorer)
 
 ```bash
 docker run -d -p 8080:8080 paulpuvi/json-explorer:latest
 ```
+
+[![Docker Pulls](https://img.shields.io/docker/pulls/paulpuvi/json-explorer?style=for-the-badge)](https://hub.docker.com/r/paulpuvi/json-explorer)
 
 ### Docker Compose
 
@@ -43,6 +45,15 @@ pnpm run build
 npx serve out
 # Access at http://localhost:3000
 ```
+
+## ⭐ Support
+
+If you find JSON Explorer useful, please consider:
+
+- ⭐ **Starring** the repository
+- 🐳 **Using** the Docker image
+
+---
 
 
 ## License
