@@ -16,6 +16,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { Tooltip } from "@/components/ui/tooltip"
 import { useEnvironment } from '@/lib/use-environment'
 import packageJson from '../package.json'
+import { sampleDatasets, categories, type SampleDataset } from '@/data/samples'
 
 interface FileHistoryItem {
   id: string
@@ -43,6 +44,9 @@ export default function JsonExplorerApp() {
   const [fileHistory, setFileHistory] = useState<FileHistoryItem[]>([])
   const [showHistoryModal, setShowHistoryModal] = useState(false)
   const [showHelpModal, setShowHelpModal] = useState(false)
+  const [showSampleModal, setShowSampleModal] = useState(false)
+  const [selectedDataset, setSelectedDataset] = useState<SampleDataset | null>(null)
+  const [isSampleData, setIsSampleData] = useState(false)
   const urlFetchClearAllRef = useRef<(() => void) | null>(null)
 
   // Check if JSON is flat (suitable for table view)
@@ -250,6 +254,8 @@ export default function JsonExplorerApp() {
     setHistory([])
     setHistoryIndex(-1)
     setTransformedData(null)
+    setIsSampleData(false)
+    setSelectedDataset(null)
     // Also clear URL fetch data
     if (urlFetchClearAllRef.current) {
       urlFetchClearAllRef.current()
@@ -320,230 +326,63 @@ export default function JsonExplorerApp() {
     setShowHelpModal(true)
   }
 
-  const sampleDataSets = {
-    "AI Models": [
-      {
-        "provider": "OpenAI",
-        "model": "GPT-4",
-        "cost": 0.03,
-        "context": 128000,
-        "capabilities": ["text", "code", "reasoning"],
-        "api": true,
-        "website": "https://openai.com",
-        "release_date": "2023-03-14",
-        "parameters": "1.76T",
-        "training_data": "September 2021",
-        "max_tokens": 4096
-      },
-      {
-        "provider": "OpenAI",
-        "model": "GPT-4 Turbo",
-        "cost": 0.01,
-        "context": 128000,
-        "capabilities": ["text", "code", "reasoning", "vision"],
-        "api": true,
-        "website": "https://openai.com",
-        "release_date": "2023-11-06",
-        "parameters": "1.76T",
-        "training_data": "April 2023",
-        "max_tokens": 4096
-      },
-      {
-        "provider": "OpenAI",
-        "model": "GPT-3.5 Turbo",
-        "cost": 0.002,
-        "context": 16384,
-        "capabilities": ["text", "code"],
-        "api": true,
-        "website": "https://openai.com",
-        "release_date": "2022-11-30",
-        "parameters": "175B",
-        "training_data": "September 2021",
-        "max_tokens": 4096
-      },
-      {
-        "provider": "Anthropic",
-        "model": "Claude 3 Opus",
-        "cost": 0.015,
-        "context": 200000,
-        "capabilities": ["text", "code", "reasoning"],
-        "api": true,
-        "website": "https://anthropic.com",
-        "release_date": "2024-03-04",
-        "parameters": "Unknown",
-        "training_data": "August 2023",
-        "max_tokens": 4096
-      },
-      {
-        "provider": "Anthropic",
-        "model": "Claude 3 Sonnet",
-        "cost": 0.003,
-        "context": 200000,
-        "capabilities": ["text", "code", "reasoning"],
-        "api": true,
-        "website": "https://anthropic.com",
-        "release_date": "2024-03-04",
-        "parameters": "Unknown",
-        "training_data": "August 2023",
-        "max_tokens": 4096
-      },
-      {
-        "provider": "Anthropic",
-        "model": "Claude 3 Haiku",
-        "cost": 0.00025,
-        "context": 200000,
-        "capabilities": ["text", "code"],
-        "api": true,
-        "website": "https://anthropic.com",
-        "release_date": "2024-03-04",
-        "parameters": "Unknown",
-        "training_data": "August 2023",
-        "max_tokens": 4096
-      },
-      {
-        "provider": "Google",
-        "model": "Gemini Pro",
-        "cost": 0.0005,
-        "context": 32000,
-        "capabilities": ["text", "code", "multimodal"],
-        "api": true,
-        "website": "https://ai.google.dev",
-        "release_date": "2023-12-06",
-        "parameters": "Unknown",
-        "training_data": "2023",
-        "max_tokens": 2048
-      },
-      {
-        "provider": "Google",
-        "model": "Gemini Ultra",
-        "cost": 0.01,
-        "context": 32000,
-        "capabilities": ["text", "code", "multimodal", "reasoning"],
-        "api": true,
-        "website": "https://ai.google.dev",
-        "release_date": "2024-02-15",
-        "parameters": "Unknown",
-        "training_data": "2023",
-        "max_tokens": 2048
-      },
-      {
-        "provider": "Meta",
-        "model": "Llama 2",
-        "cost": 0,
-        "context": 4096,
-        "capabilities": ["text", "code"],
-        "api": false,
-        "website": "https://ai.meta.com",
-        "local": true,
-        "release_date": "2023-07-18",
-        "parameters": "70B",
-        "training_data": "September 2022",
-        "max_tokens": 4096
-      },
-      {
-        "provider": "Meta",
-        "model": "Llama 3",
-        "cost": 0,
-        "context": 128000,
-        "capabilities": ["text", "code", "reasoning"],
-        "api": false,
-        "website": "https://ai.meta.com",
-        "local": true,
-        "release_date": "2024-04-18",
-        "parameters": "405B",
-        "training_data": "March 2024",
-        "max_tokens": 8192
-      },
-      {
-        "provider": "Mistral",
-        "model": "Mistral 7B",
-        "cost": 0,
-        "context": 32000,
-        "capabilities": ["text", "code"],
-        "api": false,
-        "website": "https://mistral.ai",
-        "local": true,
-        "release_date": "2023-09-27",
-        "parameters": "7B",
-        "training_data": "2023",
-        "max_tokens": 32000
-      },
-      {
-        "provider": "Mistral",
-        "model": "Mixtral 8x7B",
-        "cost": 0,
-        "context": 32000,
-        "capabilities": ["text", "code", "reasoning"],
-        "api": false,
-        "website": "https://mistral.ai",
-        "local": true,
-        "release_date": "2024-01-31",
-        "parameters": "45B",
-        "training_data": "2023",
-        "max_tokens": 32000
-      },
-      {
-        "provider": "Cohere",
-        "model": "Command",
-        "cost": 0.0015,
-        "context": 4096,
-        "capabilities": ["text", "code"],
-        "api": true,
-        "website": "https://cohere.com",
-        "release_date": "2023-05-15",
-        "parameters": "Unknown",
-        "training_data": "2023",
-        "max_tokens": 2048
-      },
-      {
-        "provider": "Cohere",
-        "model": "Command Light",
-        "cost": 0.0003,
-        "context": 4096,
-        "capabilities": ["text"],
-        "api": true,
-        "website": "https://cohere.com",
-        "release_date": "2023-05-15",
-        "parameters": "Unknown",
-        "training_data": "2023",
-        "max_tokens": 2048
-      },
-      {
-        "provider": "xAI",
-        "model": "Grok-1",
-        "cost": 0.01,
-        "context": 8192,
-        "capabilities": ["text", "code", "reasoning"],
-        "api": true,
-        "website": "https://x.ai",
-        "release_date": "2024-03-17",
-        "parameters": "314B",
-        "training_data": "October 2023",
-        "max_tokens": 4096
+  /**
+   * Load sample dataset dynamically
+   * 
+   * This function dynamically imports TypeScript data from the data/samples/ directory
+   * and loads it into the JSON Explorer. Each dataset is stored as a separate
+   * TypeScript file with metadata defined in data/samples/index.ts
+   * 
+   * To add a new sample dataset:
+   * 1. Create a new TypeScript file in data/samples/ (e.g., my-dataset.ts)
+   * 2. Export the data as: export default [array of objects]
+   * 3. Add metadata to the sampleDatasets array in data/samples/index.ts
+   * 4. The dataset will automatically appear in the sample selector modal
+   */
+  const loadSampleDataset = async (dataset: SampleDataset) => {
+    try {
+      setIsLoading(true)
+      const module = await import(`@/data/samples/${dataset.fileName}`)
+      const data = module.default || module
+      setJsonInput(JSON.stringify(data, null, 2))
+      setDataKey((prev) => prev + 1)
+      setHistory([])
+      setHistoryIndex(-1)
+      setShowSampleModal(false)
+      setIsSampleData(true)
+      setSelectedDataset(dataset)
+      
+      // Auto-switch to table view for sample datasets if recommended
+      if (dataset.recommendedView === 'table' || dataset.recommendedView === 'both') {
+        setViewMode('table')
       }
-    ]
+      
+      // Scroll to data section after a short delay to allow for rendering
+      setTimeout(() => {
+        const dataSection = document.getElementById('data-analysis-section')
+        dataSection?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        })
+      }, 100)
+    } catch (error) {
+      console.error('Failed to load sample dataset:', error)
+      setError(`Failed to load ${dataset.name} dataset`)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const loadSampleJson = () => {
-    setJsonInput(JSON.stringify(sampleDataSets["AI Models"], null, 2))
-    setDataKey((prev) => prev + 1)
-    setHistory([])
-    setHistoryIndex(-1)
-    
-    // Scroll to data section after a short delay to allow for rendering
-    setTimeout(() => {
-      const dataSection = document.getElementById('data-analysis-section')
-      dataSection?.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'start' 
-      })
-    }, 100)
+  const showSampleSelector = () => {
+    setShowSampleModal(true)
   }
 
   const handleFileContent = (content: string) => {
     console.log("[json-explorer] File content received, length:", content.length)
     setJsonInput(content)
     setDataKey((prev) => prev + 1)
+    setIsSampleData(false)
+    setSelectedDataset(null)
   }
 
   // Auto-resize textarea when content changes
@@ -692,7 +531,7 @@ export default function JsonExplorerApp() {
                   <CardDescription className="text-base mt-1">Paste, upload, or fetch your JSON data</CardDescription>
                 </div>
                 <Button 
-                  onClick={loadSampleJson} 
+                  onClick={showSampleSelector} 
                   variant="outline" 
                   size="sm" 
                   className="flex items-center gap-2 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all duration-200 border-muted/50"
@@ -975,8 +814,25 @@ export default function JsonExplorerApp() {
                     <CardTitle className="flex items-center gap-2">
                       <BarChart3 className="h-5 w-5" />
                       Data Analysis
+                      {isSampleData && selectedDataset && (
+                        <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-800 border-blue-200">
+                          <FileText className="h-3 w-3 mr-1" />
+                          Sample: {selectedDataset.name}
+                        </Badge>
+                      )}
                     </CardTitle>
-                    <CardDescription>Explore, filter, and export your data with powerful tools</CardDescription>
+                    <CardDescription>
+                      Explore, filter, and export your data with powerful tools
+                      {isSampleData && selectedDataset && (
+                        <span className="block mt-1 text-sm text-blue-700">
+                          💡 This is sample data. 
+                          {selectedDataset.recommendedView === 'tree' 
+                            ? ' Try the "Flatten" button to convert nested data to table view!' 
+                            : ' Try sorting columns, filtering by values, and exploring the features!'
+                          }
+                        </span>
+                      )}
+                    </CardDescription>
                   </div>
                   {viewMode === "table" ? (
                     <JsonTableViewer key={dataKey} data={transformedData || parsedJson} showStatsOnly={true} />
@@ -1068,6 +924,86 @@ export default function JsonExplorerApp() {
           </div>
         </div>
       </footer>
+
+      {/* Sample Dataset Selector Modal */}
+      {showSampleModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4">
+          <div className="bg-background border border-border rounded-lg shadow-xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+            <div className="p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-semibold flex items-center gap-2">
+                  <FileText className="h-6 w-6 text-primary" />
+                  Choose Sample Dataset
+                </h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowSampleModal(false)}
+                  className="h-8 w-8 p-0 hover:bg-muted"
+                >
+                  ×
+                </Button>
+              </div>
+              
+              <div className="space-y-6">
+                <p className="text-muted-foreground">
+                  Select a sample dataset to explore JSON Explorer's features. Each dataset demonstrates different capabilities and use cases.
+                </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {sampleDatasets.map((dataset) => {
+                    const category = categories.find(cat => cat.id === dataset.category)
+                    return (
+                      <div
+                        key={dataset.id}
+                        className="border border-border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer group"
+                        onClick={() => loadSampleDataset(dataset)}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="text-2xl">{dataset.icon}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                                {dataset.name}
+                              </h3>
+                              <Badge variant="outline" className="text-xs">
+                                {dataset.recordCount} records
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                              {dataset.description}
+                            </p>
+                            <div className="flex items-center gap-2 mb-3">
+                              <Badge variant="secondary" className="text-xs">
+                                {category?.icon} {category?.name}
+                              </Badge>
+                              <Badge 
+                                variant="outline"
+                                className="text-xs flex items-center gap-1 bg-white border-gray-200"
+                              >
+                                {dataset.recommendedView === 'both' ? (
+                                  <>
+                                    <Table className="h-3 w-3 text-blue-600" />
+                                    <TreePine className="h-3 w-3 text-blue-600" />
+                                  </>
+                                ) : dataset.recommendedView === 'table' ? (
+                                  <Table className="h-3 w-3 text-blue-600" />
+                                ) : (
+                                  <TreePine className="h-3 w-3 text-blue-600" />
+                                )}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Help & Documentation Modal */}
       {showHelpModal && (

@@ -21,8 +21,8 @@ updates:
         patterns:
           - "*"
         update-types:
+          - "major"
           - "minor"
-          - "patch"
 
   # Enable version updates for Docker
   - package-ecosystem: "docker"
