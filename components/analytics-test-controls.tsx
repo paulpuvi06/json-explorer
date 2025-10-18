@@ -14,11 +14,7 @@ export function AnalyticsTestControls() {
     const urlHasTestParam = window.location.search.includes('test-analytics=true')
     
     setIsTestMode(testMode || urlHasTestParam)
-    
-    // Only show controls if URL has test parameter
-    if (urlHasTestParam) {
-      setShowControls(true)
-    }
+    setShowControls(urlHasTestParam)
   }, [])
 
   const enableTestMode = () => {
@@ -43,10 +39,12 @@ export function AnalyticsTestControls() {
     window.history.replaceState({}, '', url.toString())
   }
 
-  // Only show in development and when URL has test parameter (not when analytics disabled at build time)
-  const isAnalyticsDisabled = process.env.DISABLE_ANALYTICS === '1'
+  // Only show in development and when URL has test parameter
+  // During SSR, window is undefined, so we return null
+  if (typeof window === 'undefined') return null
   
-  if (process.env.NODE_ENV === 'production' || !showControls || isAnalyticsDisabled) return null
+  // Only show on localhost and when showControls is true
+  if (window.location.hostname !== 'localhost' || !showControls) return null
 
   return (
     <Card className="fixed top-4 right-4 z-50 w-80 p-4 bg-yellow-50 border-yellow-200">

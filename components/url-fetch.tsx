@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -18,6 +18,7 @@ interface UrlFetchProps {
 interface FetchStatus {
   status: "idle" | "loading" | "success" | "error"
   message?: string
+  retryCount?: number
 }
 
 interface Header {
@@ -54,7 +55,9 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
   const [refreshInterval, setRefreshInterval] = useState<number>(0)
   const [isAutoRefreshing, setIsAutoRefreshing] = useState(false)
   const [refreshTimer, setRefreshTimer] = useState<NodeJS.Timeout | null>(null)
+  const refreshTimerRef = useRef<NodeJS.Timeout | null>(null)
   const [lastFetchTime, setLastFetchTime] = useState<number | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
 
   const isValidUrl = (urlString: string): boolean => {
     try {
@@ -77,17 +80,20 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
   }, [])
 
   const clearAll = () => {
+    // Stop auto refresh first
+    if (refreshTimerRef.current) {
+      clearInterval(refreshTimerRef.current)
+      refreshTimerRef.current = null
+    }
+    setRefreshTimer(null)
+    setIsAutoRefreshing(false)
     setUrl("")
     setHeaders([])
     setFetchStatus({ status: "idle" })
     setHeaderVisibility({})
     setRefreshInterval(0)
-    setIsAutoRefreshing(false)
-    if (refreshTimer) {
-      clearInterval(refreshTimer)
-      setRefreshTimer(null)
-    }
     setLastFetchTime(null)
+    setRetryCount(0)
   }
 
   // Expose clearAll function to parent component
@@ -99,35 +105,57 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
 
   // Auto-refresh functions
   const startAutoRefresh = () => {
-    if (refreshTimer) {
-      clearInterval(refreshTimer)
+    // Clear any existing timer
+    if (refreshTimerRef.current) {
+      clearInterval(refreshTimerRef.current)
+      refreshTimerRef.current = null
     }
     
     if (refreshInterval && refreshInterval > 0 && url.trim() && isValidUrl(url)) {
       setIsAutoRefreshing(true)
       const timer = setInterval(() => {
-        fetchJsonFromUrl()
+        // Only continue auto-refresh if we're not in error state
+        if (fetchStatus.status !== "error") {
+          fetchJsonFromUrl()
+        } else {
+          // Stop auto-refresh on persistent errors
+          stopAutoRefresh()
+        }
       }, refreshInterval * 1000)
+      refreshTimerRef.current = timer
       setRefreshTimer(timer)
     }
   }
 
   const stopAutoRefresh = () => {
-    if (refreshTimer) {
-      clearInterval(refreshTimer)
-      setRefreshTimer(null)
+    if (refreshTimerRef.current) {
+      clearInterval(refreshTimerRef.current)
+      refreshTimerRef.current = null
     }
+    setRefreshTimer(null)
     setIsAutoRefreshing(false)
   }
+
+  // Stop auto refresh when refreshInterval is set to 0 or URL becomes invalid
+  useEffect(() => {
+    if (refreshInterval === 0 || !url.trim() || !isValidUrl(url)) {
+      if (refreshTimerRef.current) {
+        clearInterval(refreshTimerRef.current)
+        refreshTimerRef.current = null
+      }
+      setRefreshTimer(null)
+      setIsAutoRefreshing(false)
+    }
+  }, [refreshInterval, url])
 
   // Cleanup timer on unmount
   useEffect(() => {
     return () => {
-      if (refreshTimer) {
-        clearInterval(refreshTimer)
+      if (refreshTimerRef.current) {
+        clearInterval(refreshTimerRef.current)
       }
     }
-  }, [refreshTimer])
+  }, [])
 
   const toggleHeaderVisibility = useCallback((index: number) => {
     setHeaderVisibility(prev => ({
@@ -163,7 +191,7 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
     return validHeaders
   }
 
-  const fetchJsonFromUrl = async () => {
+  const fetchJsonFromUrl = async (isRetry = false) => {
     if (!(url.trim() && isValidUrl(url))) {
       setFetchStatus({ 
         status: "error", 
@@ -176,7 +204,8 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
 
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000)
+      const timeoutId = setTimeout(() => controller.abort(), 15000) // Increased timeout
+      const startTime = Date.now()
 
       const response = await fetch(url, {
         method: "GET",
@@ -185,36 +214,84 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
       })
 
       clearTimeout(timeoutId)
+      const duration = Date.now() - startTime
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        const errorDetails = {
+          status: response.status,
+          statusText: response.statusText,
+          url: response.url,
+          duration: `${duration}ms`
+        }
+        
+        if (response.status === 404) {
+          throw new Error(`Resource not found (404). URL: ${url}`)
+        } else if (response.status === 403) {
+          throw new Error(`Access forbidden (403). Check authentication headers.`)
+        } else if (response.status === 401) {
+          throw new Error(`Unauthorized (401). Add proper authentication headers.`)
+        } else if (response.status >= 500) {
+          throw new Error(`Server error (${response.status}). Try again later.`)
+        } else {
+          throw new Error(`HTTP ${response.status}: ${response.statusText} (${duration}ms)`)
+        }
       }
 
       const text = await response.text()
       try {
         JSON.parse(text)
         onUrlContent(text)
-        setFetchStatus({ status: "success" })
+        setFetchStatus({ 
+          status: "success", 
+          message: `Successfully fetched ${text.length} characters`
+        })
         setLastFetchTime(Date.now())
+        setRetryCount(0) // Reset retry count on success
+        
+        // Auto-dismiss success message after 3 seconds
+        setTimeout(() => {
+          setFetchStatus(prev => prev.status === "success" ? { status: "idle" } : prev)
+        }, 3000)
       } catch (parseError) {
-        throw new Error("Response is not valid JSON format")
+        throw new Error(`Response is not valid JSON format. Received ${text.length} characters.`)
       }
 
     } catch (error) {
       let errorMsg = "Failed to fetch JSON"
+      let shouldRetry = false
+      
       if (error instanceof Error) {
         if (error.name === "AbortError") {
-          errorMsg = "Request timed out (10 seconds)"
+          errorMsg = "Request timed out (15 seconds). The server may be slow or unresponsive."
+          shouldRetry = retryCount < 2 // Retry timeout errors up to 2 times
         } else if (error.message.includes("CORS")) {
-          errorMsg = "CORS error: The server must allow cross-origin requests"
+          errorMsg = "CORS error: The server must allow cross-origin requests. Try using a CORS proxy or server-side fetching."
+        } else if (error.message.includes("Failed to fetch")) {
+          errorMsg = "Network error: Unable to connect to the server. Check your internet connection and URL."
+          shouldRetry = retryCount < 2 // Retry network errors up to 2 times
+        } else if (error.message.includes("Server error")) {
+          shouldRetry = retryCount < 1 // Retry server errors once
+          errorMsg = error.message
         } else {
           errorMsg = error.message
         }
       }
+      
+      const newRetryCount = isRetry ? retryCount : retryCount + 1
+      setRetryCount(newRetryCount)
+      
       setFetchStatus({ 
         status: "error", 
-        message: errorMsg 
+        message: errorMsg,
+        retryCount: newRetryCount
       })
+      
+      // Auto-retry for certain errors
+      if (shouldRetry && newRetryCount <= 2) {
+        setTimeout(() => {
+          fetchJsonFromUrl(true)
+        }, Math.pow(2, newRetryCount) * 1000) // Exponential backoff: 1s, 2s, 4s
+      }
     }
   }
 
@@ -246,8 +323,10 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
               }}
               onKeyPress={handleKeyPress}
               className={cn(
-                "font-mono text-sm",
-                fetchStatus.status === "error" && "border-destructive"
+                "font-mono text-sm transition-colors",
+                fetchStatus.status === "error" && "border-destructive",
+                url && isValidUrl(url) && fetchStatus.status === "idle" && "border-green-300 dark:border-green-600",
+                url && !isValidUrl(url) && "border-yellow-300 dark:border-yellow-600"
               )}
               autoComplete="url"
             />
@@ -264,7 +343,7 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
             )}
           </div>
           <Button 
-            onClick={fetchJsonFromUrl}
+            onClick={() => fetchJsonFromUrl()}
             disabled={!url.trim() || fetchStatus.status === "loading"}
             className="flex items-center gap-2"
           >
@@ -292,9 +371,15 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
             <RefreshCw className="h-4 w-4 text-muted-foreground" />
             <span className="text-sm font-medium">Auto-refresh</span>
             {isAutoRefreshing && (
-              <Badge variant="secondary" className="text-xs bg-green-100 text-green-800 border-green-200">
+              <Badge variant="secondary" className="text-xs bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 border-green-200 dark:border-green-700">
                 <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-1"></div>
                 Active
+              </Badge>
+            )}
+            {fetchStatus.status === "error" && isAutoRefreshing && (
+              <Badge variant="destructive" className="text-xs">
+                <div className="w-2 h-2 bg-red-500 rounded-full mr-1"></div>
+                Paused
               </Badge>
             )}
           </div>
@@ -302,7 +387,17 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
             <input
               type="number"
               value={refreshInterval}
-              onChange={(e) => setRefreshInterval(parseInt(e.target.value) || 0)}
+              onChange={(e) => {
+                const newInterval = parseInt(e.target.value) || 0
+                setRefreshInterval(newInterval)
+                // Immediately stop auto refresh when interval is set to 0
+                if (newInterval === 0 && refreshTimerRef.current) {
+                  clearInterval(refreshTimerRef.current)
+                  refreshTimerRef.current = null
+                  setRefreshTimer(null)
+                  setIsAutoRefreshing(false)
+                }
+              }}
               placeholder="0"
               min="0"
               max="3600"
@@ -501,10 +596,30 @@ export function UrlFetch({ onUrlContent, clearAllRef }: UrlFetchProps) {
       {fetchStatus.status === "error" && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            {fetchStatus.message}
+          <AlertDescription className="flex items-center justify-between">
+            <span>{fetchStatus.message}</span>
+            {retryCount > 0 && retryCount < 3 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setRetryCount(0)
+                  fetchJsonFromUrl(false)
+                }}
+                className="ml-4 h-6 px-2 text-xs border-red-300 text-red-700 hover:bg-red-50"
+              >
+                Retry ({retryCount}/3)
+              </Button>
+            )}
           </AlertDescription>
         </Alert>
+      )}
+
+      {fetchStatus.status === "success" && fetchStatus.message && (
+        <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 border border-green-200 rounded-md px-3 py-2">
+          <CheckCircle className="h-4 w-4" />
+          <span>{fetchStatus.message}</span>
+        </div>
       )}
 
     </div>

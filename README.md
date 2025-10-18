@@ -42,11 +42,6 @@ npx serve out
 # Access at http://localhost:3000
 ```
 
-## More Info
-
-- **Source Code**: [GitHub Repository](https://github.com/paulpuvi06/json-explorer)
-- **Issues**: [Report bugs or request features](https://github.com/paulpuvi06/json-explorer/issues)
-- **Documentation**: [Full documentation](https://github.com/paulpuvi06/json-explorer#readme)
 
 ## License
 

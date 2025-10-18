@@ -298,14 +298,14 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
         if (!filter.value.trim() || filter.value === "default") return true
 
         const cellValue = row[filter.column]
-        const filterValue = filter.value.toLowerCase().trim()
+        const filterValue = filter.value.trim()
 
         if (Array.isArray(cellValue)) {
-          return cellValue.some((item) => String(item).toLowerCase().includes(filterValue))
+          return cellValue.some((item) => String(item).toLowerCase().includes(filterValue.toLowerCase()))
         }
 
         if (typeof cellValue === "object" && cellValue !== null) {
-          return JSON.stringify(cellValue).toLowerCase().includes(filterValue)
+          return JSON.stringify(cellValue).toLowerCase().includes(filterValue.toLowerCase())
         }
 
         const cellString = String(cellValue || "").toLowerCase()
@@ -315,31 +315,79 @@ export function JsonTableViewer({ data, showStatsOnly = false }: JsonTableViewer
           const operator = filter.searchOperator || "contains"
           
           if (operator === "not_contains") {
-            return !cellString.includes(filterValue)
+            return !cellString.includes(filterValue.toLowerCase())
           } else {
-            return cellString.includes(filterValue)
+            return cellString.includes(filterValue.toLowerCase())
           }
         } else if (filter.type === "select") {
           // Handle select matching - exact match for dropdown values
           const operator = filter.searchOperator || "equals"
           
-          if (operator === "not_equals") {
-            return cellString !== filterValue
+          // For select matching, we also need to handle different data types properly
+          if (typeof cellValue === "boolean") {
+            // Handle boolean values - convert filter string to boolean for comparison
+            const filterBool = filterValue.toLowerCase() === "true"
+            if (operator === "not_equals") {
+              return cellValue !== filterBool
+            } else {
+              return cellValue === filterBool
+            }
+          } else if (typeof cellValue === "number") {
+            // Handle numeric values - try to parse filter as number
+            const filterNum = parseFloat(filterValue)
+            if (isNaN(filterNum)) {
+              // If filter can't be parsed as number, no match
+              return operator === "not_equals"
+            }
+            if (operator === "not_equals") {
+              return cellValue !== filterNum
+            } else {
+              return cellValue === filterNum
+            }
           } else {
-            return cellString === filterValue
+            // Handle string values - case-sensitive exact match
+            if (operator === "not_equals") {
+              return String(cellValue) !== filterValue
+            } else {
+              return String(cellValue) === filterValue
+            }
           }
         } else if (filter.type === "exact") {
-          // Handle exact matching
+          // Handle exact matching - preserve original data types for accurate comparison
           const operator = filter.searchOperator || "equals"
           
-          if (operator === "not_equals") {
-            return cellString !== filterValue
+          // For exact matching, we need to handle different data types properly
+          if (typeof cellValue === "boolean") {
+            // Handle boolean values - convert filter string to boolean for comparison
+            const filterBool = filterValue.toLowerCase() === "true"
+            if (operator === "not_equals") {
+              return cellValue !== filterBool
+            } else {
+              return cellValue === filterBool
+            }
+          } else if (typeof cellValue === "number") {
+            // Handle numeric values - try to parse filter as number
+            const filterNum = parseFloat(filterValue)
+            if (isNaN(filterNum)) {
+              // If filter can't be parsed as number, no match
+              return operator === "not_equals"
+            }
+            if (operator === "not_equals") {
+              return cellValue !== filterNum
+            } else {
+              return cellValue === filterNum
+            }
           } else {
-            return cellString === filterValue
+            // Handle string values - case-sensitive exact match
+            if (operator === "not_equals") {
+              return String(cellValue) !== filterValue
+            } else {
+              return String(cellValue) === filterValue
+            }
           }
         } else {
           // Fallback to contains
-          return cellString.includes(filterValue)
+          return cellString.includes(filterValue.toLowerCase())
         }
       })
 
