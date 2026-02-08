@@ -1,8 +1,5 @@
 /**
- * Container Orchestration Platforms Dataset
- * 
- * This dataset contains information about container orchestration platforms
- * including Kubernetes distributions, managed services, and deployment models.
+ * Container Orchestration - Kubernetes, ECS, GKE, AKS, EKS, and managed platforms
  */
 
 export default [

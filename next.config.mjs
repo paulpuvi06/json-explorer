@@ -6,9 +6,6 @@ const __dirname = dirname(__filename)
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -18,6 +15,7 @@ const nextConfig = {
   output: 'export',
   trailingSlash: true,
   distDir: 'out',
+  turbopack: {},
   webpack: (config, { isServer }) => {
     // Fix for vendor chunk issues in static export
     if (isServer) {

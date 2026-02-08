@@ -1,8 +1,5 @@
 /**
- * Security Tools Dataset
- * 
- * This dataset contains information about security tools and platforms
- * including vulnerability scanners, SAST/DAST tools, and security monitoring.
+ * Security Tools - vulnerability scanners, SAST/DAST, compliance
  */
 
 export default [
