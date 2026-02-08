@@ -1,46 +1,7 @@
 /**
  * Sample Dataset Metadata and Types
- * 
- * This file defines the structure and metadata for all sample datasets
- * used in the JSON Explorer application.
- * 
- * HOW TO ADD A NEW SAMPLE DATASET:
- * 
- * 1. Create a new TypeScript file in this directory (e.g., "my-dataset.ts")
- *    - Use realistic, current data (2024-2025)
- *    - Keep records between 10-25 for optimal demo experience
- *    - Include diverse data types (strings, numbers, booleans, arrays, objects)
- *    - Export as: export default [array of objects]
- *    - Add a header comment explaining the data source and purpose
- * 
- * 2. Add metadata to the sampleDatasets array below:
- *    - id: unique identifier (kebab-case)
- *    - name: display name
- *    - description: brief description of what the dataset demonstrates
- *    - fileName: name of the TypeScript file (with .ts extension)
- *    - category: one of the existing category IDs
- *    - recordCount: number of records in the dataset
- *    - recommendedView: 'table', 'tree', or 'both'
- *    - features: array of key features this dataset demonstrates
- *    - icon: emoji or icon representation
- *    - tags: optional array of searchable tags
- * 
- * 3. The dataset will automatically appear in the sample selector modal
- *    and be available for dynamic loading.
- * 
- * EXAMPLE:
- * {
- *   id: 'my-new-dataset',
- *   name: 'My New Dataset',
- *   description: 'Demonstrates advanced filtering and sorting capabilities',
- *   fileName: 'my-dataset.ts',
- *   category: 'databases',
- *   recordCount: 15,
- *   recommendedView: 'table',
- *   features: ['Advanced filtering', 'Custom sorting', 'Data validation'],
- *   icon: '📊',
- *   tags: ['analytics', 'filtering', 'sorting']
- * }
+ *
+ * Add new datasets by creating a .ts file and adding metadata to sampleDatasets.
  */
 
 export interface SampleDataset {
@@ -88,9 +49,9 @@ export const categories: DatasetCategory[] = [
   },
   {
     id: 'cloud',
-    name: 'Platform Engineering',
-    description: 'Internal developer portals and platform tools',
-    icon: '🏗️',
+    name: 'AI & Platform',
+    description: 'MCP servers and AI platform integrations',
+    icon: '🔌',
     color: 'green'
   }
 ]
@@ -130,50 +91,34 @@ export const sampleDatasets: SampleDataset[] = [
     icon: '🔒'
   },
   {
-    id: 'internal-developer-portals',
-    name: 'Internal Developer Portals',
-    description: 'Platform engineering tools including Backstage, Port, OpsLevel, and others. Compare features, pricing, and integrations for developer experience.',
-    fileName: 'internal-developer-portals.ts',
+    id: 'mcp-servers',
+    name: 'MCP Servers',
+    description: 'Model Context Protocol servers including Filesystem, Git, Fetch, Memory, and AWS. Compare capabilities, tools, and resources for AI agent integration.',
+    fileName: 'mcp-servers.ts',
     category: 'cloud',
-    recordCount: 8,
+    recordCount: 10,
     recommendedView: 'tree',
-    features: ['Service catalog', 'Platform engineering', 'Developer experience', 'Integration analysis'],
-    icon: '🏗️'
+    features: ['Tools & resources', 'Prompt support', 'Transport types', 'Capability comparison'],
+    icon: '🔌'
   }
 ]
 
-/**
- * Get dataset by ID
- */
 export function getDatasetById(id: string): SampleDataset | undefined {
   return sampleDatasets.find(dataset => dataset.id === id)
 }
 
-/**
- * Get datasets by category
- */
 export function getDatasetsByCategory(categoryId: string): SampleDataset[] {
   return sampleDatasets.filter(dataset => dataset.category === categoryId)
 }
 
-/**
- * Get all dataset categories
- */
 export function getAllCategories(): DatasetCategory[] {
   return categories
 }
 
-/**
- * Get category by ID
- */
 export function getCategoryById(id: string): DatasetCategory | undefined {
   return categories.find(category => category.id === id)
 }
 
-/**
- * Load dataset data dynamically
- * This function will be used to import the actual JSON data
- */
 export async function loadDatasetData(fileName: string): Promise<any> {
   try {
     const module = await import(`./${fileName}`)
@@ -184,9 +129,6 @@ export async function loadDatasetData(fileName: string): Promise<any> {
   }
 }
 
-/**
- * Get dataset statistics
- */
 export function getDatasetStats() {
   const totalDatasets = sampleDatasets.length
   const totalRecords = sampleDatasets.reduce((sum, dataset) => sum + dataset.recordCount, 0)
@@ -200,9 +142,6 @@ export function getDatasetStats() {
   }
 }
 
-/**
- * Search datasets by name or description
- */
 export function searchDatasets(query: string): SampleDataset[] {
   const lowercaseQuery = query.toLowerCase()
   return sampleDatasets.filter(dataset => 
@@ -212,18 +151,14 @@ export function searchDatasets(query: string): SampleDataset[] {
   )
 }
 
-/**
- * Get recommended datasets for a specific use case
- */
 export function getRecommendedDatasets(useCase: string): SampleDataset[] {
   const recommendations: Record<string, string[]> = {
-    'pricing': ['ai-models', 'cloud-providers', 'cicd-platforms', 'monitoring-observability'],
-    'comparison': ['ai-models', 'cloud-providers', 'database-systems', 'monitoring-observability'],
-    'features': ['cicd-platforms', 'container-orchestration', 'database-systems'],
-    'technical': ['ai-models', 'database-systems', 'container-orchestration'],
-    'business': ['cloud-providers', 'cicd-platforms', 'monitoring-observability']
+    'pricing': ['ai-models', 'container-orchestration'],
+    'comparison': ['ai-models', 'mcp-servers', 'security-tools'],
+    'features': ['mcp-servers', 'container-orchestration', 'security-tools'],
+    'technical': ['ai-models', 'container-orchestration', 'mcp-servers'],
+    'business': ['ai-models', 'security-tools']
   }
-  
   const recommendedIds = recommendations[useCase.toLowerCase()] || []
   return sampleDatasets.filter(dataset => recommendedIds.includes(dataset.id))
 }
