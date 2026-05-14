@@ -1,0 +1,7 @@
+# Single-package root; required for pnpm 10+ workspace settings (e.g. allowBuilds).
+packages:
+  - '.'
+
+# Next.js pulls sharp; its postinstall must run in CI/Docker (strictDepBuilds).
+allowBuilds:
+  sharp: true
