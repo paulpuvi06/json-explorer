@@ -60,10 +60,10 @@ export const sampleDatasets: SampleDataset[] = [
   {
     id: 'ai-models',
     name: 'AI Models Comparison',
-    description: 'Comprehensive comparison of AI models including GPT-4o, Claude 3.5, Gemini 2.0, and more. Features pricing, capabilities, benchmarks, and technical specifications.',
+    description: 'Comparison of frontier and mid-tier models (OpenAI, Anthropic, Google, Meta, and others) with pricing, capability tags, benchmarks, and specs—ideal for table sort and filter demos.',
     fileName: 'ai-models.ts',
     category: 'ai-ml',
-    recordCount: 20,
+    recordCount: 21,
     recommendedView: 'table',
     features: ['Sorting by cost', 'Filtering by provider', 'Array capabilities', 'Benchmark comparison', 'Pricing analysis'],
     icon: '🤖'

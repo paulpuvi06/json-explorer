@@ -11,7 +11,7 @@ import { JsonTableViewer } from "@/components/json-table-viewer"
 import { JsonTreeViewer } from "@/components/json-tree-viewer"
 import { FileUpload } from "@/components/file-upload"
 import { UrlFetch } from "@/components/url-fetch"
-import { CheckCircle, AlertCircle, FileText, Upload, Code, Table, Shield, Zap, Filter, Download, Search, BarChart3, Copy, RotateCcw, RotateCw, Check, TreePine, ExternalLink, Maximize, Minimize, Info, History, Clock, Trash2, BookOpen, RefreshCw, Settings, Github } from "lucide-react"
+import { CheckCircle, AlertCircle, FileText, Upload, Code, Table, Shield, Zap, Filter, Download, Search, BarChart3, Copy, RotateCcw, RotateCw, Check, TreePine, ExternalLink, Maximize, Minimize, Info, History, Clock, Trash2, BookOpen, RefreshCw, Settings, GitBranch } from "lucide-react"
 import { Spinner } from "@/components/ui/spinner"
 import { Tooltip } from "@/components/ui/tooltip"
 import { useEnvironment } from '@/lib/use-environment'
@@ -1523,7 +1523,7 @@ export default function JsonExplorerApp() {
                         className="text-muted-foreground hover:text-primary transition-colors"
                         title="View Source Code on GitHub"
                       >
-                        <Github className="h-4 w-4" />
+                        <GitBranch className="h-4 w-4" />
                       </a>
                       <span>Version {packageJson.version}</span>
                       {showPersonalBranding && (
