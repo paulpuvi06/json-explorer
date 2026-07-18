@@ -1,6 +1,6 @@
 {
   "name": "json-explorer",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "private": true,
   "scripts": {
     "build": "rm -rf out && next build",
@@ -34,6 +34,6 @@
     "@types/react-dom": "^19.2.3",
     "postcss": "^8.5.19",
     "tailwindcss": "^4.3.3",
-    "typescript": "7.0.2"
+    "typescript": "6.0.3"
   }
 }
