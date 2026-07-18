@@ -60,7 +60,7 @@ export const sampleDatasets: SampleDataset[] = [
   {
     id: 'ai-models',
     name: 'AI Models Comparison',
-    description: 'Comparison of frontier and mid-tier models (OpenAI, Anthropic, Google, Meta, and others) with pricing, capability tags, benchmarks, and specs—ideal for table sort and filter demos.',
+    description: 'July 2026 comparison of frontier and mid-tier models (GPT-5.5, Claude Opus 4.8, Microsoft Phi-4 / MAI, DeepSeek V4, Grok 4.3, and others) with pricing, capability tags, benchmarks, and specs.',
     fileName: 'ai-models.ts',
     category: 'ai-ml',
     recordCount: 21,
@@ -71,7 +71,7 @@ export const sampleDatasets: SampleDataset[] = [
   {
     id: 'container-orchestration',
     name: 'Container Orchestration',
-    description: 'Container orchestration platforms including Kubernetes, Docker Swarm, ECS, AKS, and others. Compare deployment models, pricing, and scaling capabilities.',
+    description: 'Container orchestration platforms including Kubernetes, ECS, GKE, AKS, EKS, OpenShift, and others. Compare deployment models, pricing, and scaling capabilities.',
     fileName: 'container-orchestration.ts',
     category: 'containers',
     recordCount: 11,
@@ -82,10 +82,10 @@ export const sampleDatasets: SampleDataset[] = [
   {
     id: 'security-tools',
     name: 'Security Tools',
-    description: 'Security tools and platforms including vulnerability scanners, SAST/DAST tools, and security monitoring. Compare features, pricing, and compliance.',
+    description: 'Security tools and platforms including SAST/DAST, SCA, container scanning, secrets detection, and cloud security. Compare features, pricing, and compliance.',
     fileName: 'security-tools.ts',
     category: 'devops',
-    recordCount: 12,
+    recordCount: 14,
     recommendedView: 'tree',
     features: ['Vulnerability scanning', 'Code analysis', 'Compliance frameworks', 'Integration types'],
     icon: '🔒'
@@ -93,10 +93,10 @@ export const sampleDatasets: SampleDataset[] = [
   {
     id: 'mcp-servers',
     name: 'MCP Servers',
-    description: 'Model Context Protocol servers including Filesystem, Git, Fetch, Memory, and AWS. Compare capabilities, tools, and resources for AI agent integration.',
+    description: 'Model Context Protocol servers including reference tools plus production integrations (GitHub, Stripe, Linear, Sentry, Slack, Notion). Compare capabilities, tools, and resources.',
     fileName: 'mcp-servers.ts',
     category: 'cloud',
-    recordCount: 10,
+    recordCount: 12,
     recommendedView: 'tree',
     features: ['Tools & resources', 'Prompt support', 'Transport types', 'Capability comparison'],
     icon: '🔌'

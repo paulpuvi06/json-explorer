@@ -1,5 +1,5 @@
 /**
- * Container Orchestration - Kubernetes, ECS, GKE, AKS, EKS, and managed platforms
+ * Container Orchestration — Kubernetes, ECS, GKE, AKS, EKS, and managed platforms (July 2026)
  */
 
 export default [
@@ -27,26 +27,26 @@ export default [
     "maturity": "mature"
   },
   {
-    "platform": "Docker Swarm",
-    "provider": "Docker",
-    "founding_year": 2014,
-    "deployment_model": "self_hosted",
-    "managed_options": ["Docker Desktop", "Docker Enterprise"],
+    "platform": "HashiCorp Nomad",
+    "provider": "HashiCorp",
+    "founding_year": 2015,
+    "deployment_model": "hybrid",
+    "managed_options": ["HCP Nomad", "Nomad Enterprise"],
     "pricing_model": "freemium",
     "cost_per_node": 0,
     "cost_per_pod": 0,
     "cost_per_cluster": 0,
-    "horizontal_pod_autoscaler": false,
+    "horizontal_pod_autoscaler": true,
     "vertical_pod_autoscaler": false,
-    "cluster_autoscaler": false,
-    "max_nodes": 1000,
-    "max_pods_per_node": 1,
+    "cluster_autoscaler": true,
+    "max_nodes": "unlimited",
+    "max_pods_per_node": "unlimited",
     "multi_cloud_support": true,
-    "learning_curve": "easy",
-    "community_size": "large",
-    "enterprise_features": "RBAC, Secrets management, Service mesh",
-    "use_cases": "Simple orchestration, Docker-native, Small teams",
-    "adoption_level": "declining",
+    "learning_curve": "moderate",
+    "community_size": "medium",
+    "enterprise_features": "ACLs, Namespaces, Sentinel policies, Multi-region",
+    "use_cases": "Batch jobs, Mixed workloads, Multi-cloud, Edge",
+    "adoption_level": "medium",
     "maturity": "mature"
   },
   {
