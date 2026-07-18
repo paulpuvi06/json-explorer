@@ -5,3 +5,6 @@ packages:
 # Next.js pulls sharp; its postinstall must run in CI/Docker (strictDepBuilds).
 allowBuilds:
   sharp: true
+
+minimumReleaseAgeExclude:
+  - react-dropzone@19.0.2

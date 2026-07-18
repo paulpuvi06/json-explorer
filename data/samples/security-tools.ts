@@ -1,5 +1,5 @@
 /**
- * Security Tools - vulnerability scanners, SAST/DAST, compliance
+ * Security Tools — vulnerability scanners, SAST/DAST, SCA, cloud security (July 2026)
  */
 
 export default [
@@ -106,8 +106,8 @@ export default [
     "pricing_model": "freemium",
     "free_tier": "Community Edition",
     "paid_tiers": {
-      "professional": "$399/year",
-      "enterprise": "$3,995/year"
+      "professional": "$449/year",
+      "enterprise": "Custom pricing"
     },
     "supported_languages": ["Web Applications", "APIs", "Mobile Apps"],
     "integration_types": ["CI/CD", "IDE", "SCM", "API Testing"],
@@ -232,5 +232,44 @@ export default [
     "learning_curve": "easy",
     "community_size": "large",
     "enterprise_features": ["RBAC", "Audit Logs", "Custom Policies"]
+  },
+  {
+    "tool": "Wiz",
+    "category": "Cloud Security",
+    "founding_year": 2020,
+    "pricing_model": "enterprise",
+    "free_tier": "No free tier",
+    "paid_tiers": {
+      "cloud": "Custom pricing",
+      "code": "Custom pricing",
+      "defend": "Custom pricing"
+    },
+    "supported_languages": ["Cloud Resources", "Containers", "Kubernetes", "IaC"],
+    "integration_types": ["CI/CD", "Cloud", "SIEM", "Ticketing"],
+    "scanning_types": ["CSPM", "CWPP", "Vulnerability", "Identity", "Data"],
+    "compliance_frameworks": ["SOC2", "ISO27001", "PCI DSS", "NIST", "CIS"],
+    "api_available": true,
+    "learning_curve": "moderate",
+    "community_size": "large",
+    "enterprise_features": ["RBAC", "SSO", "Audit Logs", "Custom Policies", "Graph Analysis"]
+  },
+  {
+    "tool": "Socket",
+    "category": "Supply Chain Security",
+    "founding_year": 2020,
+    "pricing_model": "freemium",
+    "free_tier": "Open source projects",
+    "paid_tiers": {
+      "team": "Custom pricing",
+      "enterprise": "Custom pricing"
+    },
+    "supported_languages": ["JavaScript", "Python", "Go", "Java", "Rust"],
+    "integration_types": ["CI/CD", "SCM", "IDE", "Package Registries"],
+    "scanning_types": ["SCA", "Malware", "Supply Chain", "License"],
+    "compliance_frameworks": ["SOC2", "ISO27001", "SLSA"],
+    "api_available": true,
+    "learning_curve": "easy",
+    "community_size": "growing",
+    "enterprise_features": ["RBAC", "SSO", "Audit Logs", "Custom Alerts"]
   }
 ]

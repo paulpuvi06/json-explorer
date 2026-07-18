@@ -1495,11 +1495,11 @@ export default function JsonExplorerApp() {
                   <div className="space-y-2 text-muted-foreground">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                      <span><strong>Next.js</strong> v15.5.4</span>
+                      <span><strong>Next.js</strong> v{String(packageJson.dependencies.next).replace(/^[\^~]/, '')}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
-                      <span><strong>React</strong> v19</span>
+                      <span><strong>React</strong> v{String(packageJson.dependencies.react).replace(/^[\^~]/, '')}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
